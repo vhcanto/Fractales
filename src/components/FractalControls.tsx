@@ -35,7 +35,7 @@ export function FractalControls({
     <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 shadow-glow">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-sm uppercase tracking-[0.35em] text-cyan-300">Fractal Lab · v05-18-06</p>
+          <p className="text-sm uppercase tracking-[0.35em] text-cyan-300">Fractal Lab · v05-18-07</p>
           <h2 className="mt-2 text-2xl font-semibold text-white">{remedyName}</h2>
           <p className="mt-2 text-sm text-slate-400">Modo limpio: calidad gráfica máxima con presets internos calibrados.</p>
           <p className="mt-3 inline-flex rounded-full border border-cyan-300/25 bg-cyan-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-cyan-100">
