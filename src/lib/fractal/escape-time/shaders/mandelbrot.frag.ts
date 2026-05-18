@@ -1,0 +1,47 @@
+import { shaderPrelude } from '../utils/shaderUtils';
+
+export const mandelbrotFragmentShader = `${shaderPrelude}
+
+vec2 squareComplex(vec2 z) {
+  return vec2(z.x * z.x - z.y * z.y, 2.0 * z.x * z.y);
+}
+
+vec2 aaOffsets(int sampleIndex) {
+  if (sampleIndex == 0) return vec2(-0.33, -0.33);
+  if (sampleIndex == 1) return vec2(0.33, -0.33);
+  if (sampleIndex == 2) return vec2(-0.33, 0.33);
+  return vec2(0.33, 0.33);
+}
+
+vec4 renderSample(vec2 offset) {
+  vec2 c = pixelToPlane(offset);
+  vec2 z = vec2(0.0);
+  float escapeRadiusSquared = u_escapeRadius * u_escapeRadius;
+  float escapedAt = -1.0;
+  float trap = 10.0;
+
+  for (int i = 0; i < MAX_STEPS; i++) {
+    if (i >= u_maxIterations) break;
+    z = squareComplex(z) + c;
+    float radiusSquared = dot(z, z);
+    trap = min(trap, abs(z.x * z.y) + 0.018 * length(z));
+
+    if (radiusSquared > escapeRadiusSquared) {
+      float logZn = log(max(radiusSquared, 1.000001)) * 0.5;
+      float nu = log(max(logZn / log(2.0), 0.000001)) / log(2.0);
+      escapedAt = float(i) + 1.0 - nu;
+      break;
+    }
+  }
+
+  return shade(escapedAt, trap, c);
+}
+
+void main() {
+  vec4 color = vec4(0.0);
+  for (int i = 0; i < 4; i++) {
+    color += renderSample(aaOffsets(i));
+  }
+  gl_FragColor = color * 0.25;
+}
+`;

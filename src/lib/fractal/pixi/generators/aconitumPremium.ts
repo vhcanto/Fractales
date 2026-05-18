@@ -53,7 +53,7 @@ export const renderAconitumPremium = ({ input, width, height, random }: PremiumG
       points.push(polarToPoint(center, currentAngle, length * progress + jitter));
 
       if (step > 2 && random() > 0.42) {
-        const branchStart = points[points.length - 1];
+        const branchStart = points[points.length - 1] as Point;
         const branchAngle = currentAngle + randomSign(random) * randomBetween(random, 0.28, 0.72);
         const branchLength = length * randomBetween(random, 0.08, 0.24) * (1 - progress * 0.35);
         strokes.push({
