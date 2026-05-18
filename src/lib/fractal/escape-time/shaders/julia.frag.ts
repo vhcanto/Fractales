@@ -20,7 +20,7 @@ vec4 renderSample(vec2 offset) {
   float escapedAt = -1.0;
   float trap = 10.0;
 
-  for (int i = 0; i < MAX_STEPS; i++) {
+  for (int i = 0; i < MAX_ITERATIONS; i++) {
     if (i >= u_maxIterations) break;
     z = squareComplex(z) + c;
     float radiusSquared = dot(z, z);
@@ -39,11 +39,16 @@ vec4 renderSample(vec2 offset) {
 
 void main() {
   vec4 color = vec4(0.0);
-  int sampleCount = clamp(u_samples, 1, 4);
-  for (int i = 0; i < 4; i++) {
+  int sampleCount = u_samples;
+  if (sampleCount < 1) sampleCount = 1;
+  if (sampleCount > MAX_SAMPLES) sampleCount = MAX_SAMPLES;
+
+  for (int i = 0; i < MAX_SAMPLES; i++) {
     if (i >= sampleCount) break;
-    color += renderSample(sampleCount == 1 ? vec2(0.0) : aaOffsets(i));
+    vec2 offset = vec2(0.0);
+    if (sampleCount > 1) offset = aaOffsets(i);
+    color += renderSample(offset);
   }
-  gl_FragColor = color / float(sampleCount);
+  gl_FragColor = color / max(float(sampleCount), 1.0);
 }
 `;

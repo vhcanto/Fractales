@@ -24,8 +24,10 @@ void main() {
 
 export const shaderPrelude = `
 precision highp float;
+precision highp int;
 
-#define MAX_STEPS 5000
+const int MAX_ITERATIONS = 5000;
+const int MAX_SAMPLES = 4;
 
 varying vec2 v_uv;
 uniform vec2 u_resolution;
@@ -85,8 +87,9 @@ vec4 shade(float smoothIteration, float trap, vec2 point) {
     return vec4(vec3((core + innerGrain * 0.012) * u_brightness), 1.0);
   }
 
-  float normalized = smoothIteration / max(float(u_maxIterations), 1.0);
-  float logDepth = log(1.0 + smoothIteration) / log(1.0 + max(float(u_maxIterations), 1.0));
+  float iterationLimit = max(float(u_maxIterations), 1.0);
+  float normalized = smoothIteration / iterationLimit;
+  float logDepth = log(1.0 + smoothIteration) / log(1.0 + iterationLimit);
   float depth = pow(clamp(mix(normalized, logDepth, 0.72), 0.0, 1.0), 0.56);
   float filament = exp(-(8.2 - min(zoomDepth, 5.0) * 0.35) * clamp(trap, 0.0, 1.0));
   float distanceGlow = 1.0 / (1.0 + 24.0 * clamp(trap, 0.0, 2.0));
@@ -96,16 +99,24 @@ vec4 shade(float smoothIteration, float trap, vec2 point) {
   color *= 0.72 + 0.62 * filament + 0.16 * distanceGlow;
   color = (color - 0.5) * adaptiveContrast + 0.5;
   color *= u_brightness;
-  color = pow(max(color, vec3(0.0)), vec3(adaptiveGamma));
+  color = pow(max(color, vec3(0.0)), vec3(max(adaptiveGamma, 0.0001)));
   color += filament * vec3(0.16, 0.18, 0.22) + distanceGlow * vec3(0.08, 0.075, 0.06) + microRings * 0.012;
   return vec4(clamp(color, vec3(0.0), vec3(1.0)), 1.0);
 }
 `;
 
+const shaderKindName = (gl: WebGLRenderingContext, type: number) => (type === gl.VERTEX_SHADER ? 'vertex shader' : 'fragment shader');
+
+export const formatShaderSourceWithLineNumbers = (source: string) => source
+  .split('\n')
+  .map((line, index) => `${String(index + 1).padStart(4, ' ')} | ${line}`)
+  .join('\n');
+
 export const compileShader = (gl: WebGLRenderingContext, type: number, source: string, label: string): WebGLShader | null => {
   const shader = gl.createShader(type);
+  const kind = shaderKindName(gl, type);
   if (!shader) {
-    console.error(`No fue posible crear shader WebGL: ${label}.`);
+    console.error(`No fue posible crear ${kind} WebGL: ${label}.`);
     return null;
   }
 
@@ -114,7 +125,11 @@ export const compileShader = (gl: WebGLRenderingContext, type: number, source: s
 
   if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
     const info = gl.getShaderInfoLog(shader) ?? 'Error desconocido compilando shader.';
-    console.error(`Error compilando shader WebGL (${label}):\n${info}\nFuente:\n${source}`);
+    console.error(
+      `Error compilando ${kind} WebGL (${label}).\n` +
+      `Log GLSL completo:\n${info}\n` +
+      `Fuente ${kind} con números de línea:\n${formatShaderSourceWithLineNumbers(source)}`,
+    );
     gl.deleteShader(shader);
     return null;
   }
@@ -123,11 +138,14 @@ export const compileShader = (gl: WebGLRenderingContext, type: number, source: s
 };
 
 export const createProgram = (gl: WebGLRenderingContext, fragmentSource: string, label = 'escape-time'): WebGLProgram | null => {
-  const vertexShader = compileShader(gl, gl.VERTEX_SHADER, vertexShaderSource, `${label}:vertex`);
-  const fragmentShader = compileShader(gl, gl.FRAGMENT_SHADER, fragmentSource, `${label}:fragment`);
+  const vertexLabel = `${label}:vertex`;
+  const fragmentLabel = `${label}:fragment`;
+  const vertexShader = compileShader(gl, gl.VERTEX_SHADER, vertexShaderSource, vertexLabel);
+  const fragmentShader = compileShader(gl, gl.FRAGMENT_SHADER, fragmentSource, fragmentLabel);
   if (!vertexShader || !fragmentShader) {
     if (vertexShader) gl.deleteShader(vertexShader);
     if (fragmentShader) gl.deleteShader(fragmentShader);
+    console.error(`No se pudo crear programa WebGL (${label}) porque falló la compilación de ${!vertexShader ? 'vertex shader' : 'fragment shader'}.`);
     return null;
   }
 
@@ -147,7 +165,12 @@ export const createProgram = (gl: WebGLRenderingContext, fragmentSource: string,
 
   if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
     const info = gl.getProgramInfoLog(program) ?? 'Error desconocido enlazando programa WebGL.';
-    console.error(`Error enlazando programa WebGL (${label}):\n${info}`);
+    console.error(
+      `Error enlazando programa WebGL (${label}).\n` +
+      `Log completo de link:\n${info}\n` +
+      `Vertex shader con números de línea:\n${formatShaderSourceWithLineNumbers(vertexShaderSource)}\n` +
+      `Fragment shader con números de línea:\n${formatShaderSourceWithLineNumbers(fragmentSource)}`,
+    );
     gl.deleteProgram(program);
     return null;
   }

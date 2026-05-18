@@ -3,10 +3,12 @@ import type { EscapeTimeFractalType, EscapeTimePreset } from './presets/escapeTi
 import { burningShipFragmentShader } from './shaders/burningShip.frag';
 import { juliaFragmentShader } from './shaders/julia.frag';
 import { mandelbrotFragmentShader } from './shaders/mandelbrot.frag';
-import { createProgram, gradientFragmentShaderSource } from './utils/shaderUtils';
+import { createProgram, gradientFragmentShaderSource, shaderPrelude } from './utils/shaderUtils';
 
 interface ProgramBundle {
   program: WebGLProgram;
+  isFallback: boolean;
+  warning?: string;
   uniforms: {
     resolution: WebGLUniformLocation | null;
     center: WebGLUniformLocation | null;
@@ -30,6 +32,69 @@ const shaderByType: Record<EscapeTimeFractalType, string> = {
   burningShip: burningShipFragmentShader,
 };
 
+const fallbackOrbitStepByType: Record<EscapeTimeFractalType, string> = {
+  mandelbrot: 'return vec2(z.x * z.x - z.y * z.y, 2.0 * z.x * z.y) + c;',
+  julia: 'return vec2(z.x * z.x - z.y * z.y, 2.0 * z.x * z.y) + u_juliaC;',
+  burningShip: 'z = abs(z); return vec2(z.x * z.x - z.y * z.y, 2.0 * z.x * z.y) + c;',
+};
+
+const createBasicFallbackShader = (fractalType: EscapeTimeFractalType) => `${shaderPrelude}
+
+vec2 stableFallbackStep(vec2 z, vec2 c) {
+  ${fallbackOrbitStepByType[fractalType]}
+}
+
+vec4 renderFallbackSample(vec2 offset) {
+  vec2 c = pixelToPlane(offset);
+  vec2 z = ${fractalType === 'julia' ? 'c' : 'vec2(0.0)'};
+  float escapeRadiusSquared = max(u_escapeRadius * u_escapeRadius, 4.0);
+  float escapedAt = -1.0;
+  float trap = 8.0;
+
+  for (int i = 0; i < MAX_ITERATIONS; i++) {
+    if (i >= u_maxIterations) break;
+    z = stableFallbackStep(z, c);
+    float radiusSquared = dot(z, z);
+    trap = min(trap, length(z));
+
+    if (radiusSquared > escapeRadiusSquared) {
+      float safeMagnitude = max(length(z), 1.000001);
+      escapedAt = float(i) + 1.0 - log(max(log(safeMagnitude), 0.000001)) / log(2.0);
+      break;
+    }
+  }
+
+  return shade(escapedAt, trap * 0.08, c);
+}
+
+void main() {
+  vec4 color = vec4(0.0);
+  int sampleCount = u_samples;
+  if (sampleCount < 1) sampleCount = 1;
+  if (sampleCount > MAX_SAMPLES) sampleCount = MAX_SAMPLES;
+
+  for (int i = 0; i < MAX_SAMPLES; i++) {
+    if (i >= sampleCount) break;
+    vec2 offset = vec2(0.0);
+    if (sampleCount > 1) {
+      if (i == 0) offset = vec2(-0.25, -0.25);
+      else if (i == 1) offset = vec2(0.25, -0.25);
+      else if (i == 2) offset = vec2(-0.25, 0.25);
+      else offset = vec2(0.25, 0.25);
+    }
+    color += renderFallbackSample(offset);
+  }
+
+  gl_FragColor = color / max(float(sampleCount), 1.0);
+}
+`;
+
+const basicFallbackShaderByType: Record<EscapeTimeFractalType, string> = {
+  mandelbrot: createBasicFallbackShader('mandelbrot'),
+  julia: createBasicFallbackShader('julia'),
+  burningShip: createBasicFallbackShader('burningShip'),
+};
+
 const coreUniformNames: Array<keyof ProgramBundle['uniforms']> = ['resolution', 'center', 'zoom', 'maxIterations', 'palette'];
 
 export class EscapeTimeFractalRenderer {
@@ -37,6 +102,7 @@ export class EscapeTimeFractalRenderer {
   private readonly programs = new Map<EscapeTimeFractalType, ProgramBundle>();
   private gradientProgram: WebGLProgram | null = null;
   private vertexBuffer: WebGLBuffer | null = null;
+  private lastTechnicalWarning: string | null = null;
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     if (!canvas || !(canvas instanceof HTMLCanvasElement)) {
@@ -92,6 +158,10 @@ export class EscapeTimeFractalRenderer {
     this.assertNoGlError('prueba de gradiente WebGL');
   }
 
+  getLastTechnicalWarning() {
+    return this.lastTechnicalWarning;
+  }
+
   render(preset: EscapeTimePreset) {
     const gl = this.gl;
     const bundle = this.getProgram(preset.fractalType);
@@ -99,6 +169,7 @@ export class EscapeTimeFractalRenderer {
     const flatPalette = new Float32Array(palette.colors.flat());
 
     this.drawProgram(bundle.program);
+    if (bundle.isFallback && bundle.warning) this.lastTechnicalWarning = bundle.warning;
     this.requireCoreUniforms(bundle, preset.fractalType);
 
     this.setUniform2f(bundle.uniforms.resolution, this.canvas.width, this.canvas.height);
@@ -165,9 +236,43 @@ export class EscapeTimeFractalRenderer {
 
   private getProgram(fractalType: EscapeTimeFractalType): ProgramBundle {
     const cached = this.programs.get(fractalType);
-    if (cached) return cached;
+    if (cached) {
+      this.lastTechnicalWarning = cached.warning ?? null;
+      return cached;
+    }
 
-    const program = this.createRequiredProgram(shaderByType[fractalType], fractalType);
+    const advancedProgram = createProgram(this.gl, shaderByType[fractalType], fractalType);
+    if (advancedProgram) {
+      const bundle = this.createBundle(advancedProgram, false);
+      this.requireCoreUniforms(bundle, fractalType);
+      this.warnOptionalUniforms(bundle, fractalType);
+      this.programs.set(fractalType, bundle);
+      this.lastTechnicalWarning = null;
+      return bundle;
+    }
+
+    const warning = `Fallback WebGL básico activo para ${fractalType}: el shader avanzado no compiló o no enlazó; revisar el log GLSL completo en consola.`;
+    console.warn(warning);
+    const fallbackProgram = createProgram(this.gl, basicFallbackShaderByType[fractalType], `${fractalType}:fallback-basic`);
+    if (!fallbackProgram) {
+      throw new Error(`No se pudo crear programa WebGL para ${fractalType}, ni con fallback básico. Ver consola para errores GLSL completos.`);
+    }
+
+    const bundle = this.createBundle(fallbackProgram, true, warning);
+    this.requireCoreUniforms(bundle, `${fractalType}:fallback-basic`);
+    this.warnOptionalUniforms(bundle, `${fractalType}:fallback-basic`);
+    this.programs.set(fractalType, bundle);
+    this.lastTechnicalWarning = warning;
+    return bundle;
+  }
+
+  private createRequiredProgram(fragmentSource: string, label: string): WebGLProgram {
+    const program = createProgram(this.gl, fragmentSource, label);
+    if (!program) throw new Error(`No se pudo crear programa WebGL para ${label}. Ver consola para errores GLSL completos.`);
+    return program;
+  }
+
+  private createBundle(program: WebGLProgram, isFallback: boolean, warning?: string): ProgramBundle {
     const uniforms: ProgramBundle['uniforms'] = {
       resolution: this.gl.getUniformLocation(program, 'u_resolution'),
       center: this.gl.getUniformLocation(program, 'u_center'),
@@ -184,17 +289,7 @@ export class EscapeTimeFractalRenderer {
       samples: this.gl.getUniformLocation(program, 'u_samples'),
     };
 
-    const bundle = { program, uniforms };
-    this.requireCoreUniforms(bundle, fractalType);
-    this.warnOptionalUniforms(bundle, fractalType);
-    this.programs.set(fractalType, bundle);
-    return bundle;
-  }
-
-  private createRequiredProgram(fragmentSource: string, label: string): WebGLProgram {
-    const program = createProgram(this.gl, fragmentSource, label);
-    if (!program) throw new Error(`No se pudo crear programa WebGL para ${label}. Ver consola para errores GLSL completos.`);
-    return program;
+    return { program, uniforms, isFallback, warning };
   }
 
   private requireCoreUniforms(bundle: ProgramBundle, label: string) {
