@@ -29,7 +29,7 @@ export function FractalControls({
     <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 shadow-glow">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-sm uppercase tracking-[0.35em] text-cyan-300">Fractal Renderer Lab · v05-18-11</p>
+          <p className="text-sm uppercase tracking-[0.35em] text-cyan-300">Fractal Renderer Lab · v05-18-12</p>
           <h2 className="mt-2 text-3xl font-semibold text-white">Fractal Renderer Lab</h2>
           <p className="mt-2 max-w-2xl text-sm text-slate-400">
             Exploración matemática WebGL de Mandelbrot, Julia Set y Burning Ship con cámara interactiva, zoom profundo y paletas calibradas.

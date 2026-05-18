@@ -128,7 +128,7 @@ export function FractalLab() {
       <div className="fixed inset-0 z-50 flex flex-col gap-3 overflow-hidden bg-slate-950 p-3 text-slate-100">
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-white/10 bg-slate-900/90 px-4 py-3 shadow-2xl shadow-slate-950/50">
           <div>
-            <p className="text-xs uppercase tracking-[0.28em] text-cyan-300">Modo exploración · v05-18-11</p>
+            <p className="text-xs uppercase tracking-[0.28em] text-cyan-300">Modo exploración · v05-18-12</p>
             <h2 className="text-lg font-semibold text-white">{fractalTypeLabels[fractalType]} · {getDepthLevel(activePreset.zoom)}</h2>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-sm">

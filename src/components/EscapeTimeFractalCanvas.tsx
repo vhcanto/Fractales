@@ -164,7 +164,8 @@ export function EscapeTimeFractalCanvas({
         }
 
         rendererRef.current.render(latestPresetRef.current);
-        setStatusMessage(latestPresetRef.current.renderStage);
+        const warning = rendererRef.current.getLastTechnicalWarning();
+        setStatusMessage(warning ? `${latestPresetRef.current.renderStage} · ${warning}` : latestPresetRef.current.renderStage);
         onRenderStatusChangeRef.current?.(latestPresetRef.current.renderStage);
       } catch (error) {
         failSafely('No fue posible renderizar el fractal matemático WebGL.', error);
@@ -210,6 +211,8 @@ export function EscapeTimeFractalCanvas({
     try {
       renderer.resize(width, height, typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1);
       renderer.render(preset);
+      const warning = renderer.getLastTechnicalWarning();
+      if (warning) setStatusMessage(`${preset.renderStage} · ${warning}`);
     } catch (error) {
       hasFailedRef.current = true;
       console.error('No fue posible actualizar el render matemático WebGL.', error);
