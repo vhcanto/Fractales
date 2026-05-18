@@ -3,7 +3,7 @@ import type { EscapeTimeFractalType, EscapeTimePreset } from './presets/escapeTi
 import { burningShipFragmentShader } from './shaders/burningShip.frag';
 import { juliaFragmentShader } from './shaders/julia.frag';
 import { mandelbrotFragmentShader } from './shaders/mandelbrot.frag';
-import { createProgram } from './utils/shaderUtils';
+import { createProgram, gradientFragmentShaderSource } from './utils/shaderUtils';
 
 interface ProgramBundle {
   program: WebGLProgram;
@@ -36,24 +36,34 @@ export class EscapeTimeFractalRenderer {
   private vertexBuffer: WebGLBuffer | null = null;
 
   constructor(private readonly canvas: HTMLCanvasElement) {
-    const gl = canvas.getContext('webgl', {
+    if (!canvas || !(canvas instanceof HTMLCanvasElement)) {
+      throw new Error('Canvas WebGL inválido o no disponible.');
+    }
+
+    const contextOptions: WebGLContextAttributes = {
       alpha: false,
       antialias: false,
       depth: false,
       premultipliedAlpha: false,
       preserveDrawingBuffer: false,
       stencil: false,
-    });
+    };
+    const gl = canvas.getContext('webgl2', contextOptions) ?? canvas.getContext('webgl', contextOptions);
 
     if (!gl) {
       throw new Error('WebGL no está disponible en este navegador.');
     }
 
-    this.gl = gl;
+    this.gl = gl as WebGLRenderingContext;
     this.initGeometry();
+    this.validateGradientProgram();
   }
 
-  resize(width: number, height: number, dpr = window.devicePixelRatio || 1) {
+  resize(width: number, height: number, dpr = 1) {
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width < 1 || height < 1) {
+      throw new Error(`Tamaño inválido para canvas WebGL: ${width}x${height}.`);
+    }
+
     const pixelRatio = Math.min(Math.max(dpr, 1), 2);
     const drawingWidth = Math.max(1, Math.floor(width * pixelRatio));
     const drawingHeight = Math.max(1, Math.floor(height * pixelRatio));
@@ -74,13 +84,17 @@ export class EscapeTimeFractalRenderer {
     const palette = getFractalPalette(preset.colorPalette);
     const flatPalette = new Float32Array(palette.colors.flat());
 
+    if (!this.vertexBuffer) throw new Error('Buffer WebGL no inicializado.');
+
     gl.useProgram(bundle.program);
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
 
     const positionLocation = gl.getAttribLocation(bundle.program, 'a_position');
+    if (positionLocation < 0) throw new Error('Atributo WebGL a_position no encontrado.');
     gl.enableVertexAttribArray(positionLocation);
     gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
 
+    this.requireUniforms(bundle);
     gl.uniform2f(bundle.uniforms.resolution, this.canvas.width, this.canvas.height);
     gl.uniform2f(bundle.uniforms.center, preset.centerX, preset.centerY);
     gl.uniform1f(bundle.uniforms.zoom, preset.zoom);
@@ -95,6 +109,7 @@ export class EscapeTimeFractalRenderer {
     gl.uniform2f(bundle.uniforms.juliaC, preset.juliaC?.x ?? -0.7269, preset.juliaC?.y ?? 0.1889);
     gl.uniform1f(bundle.uniforms.progress, progress);
 
+    gl.clear(gl.COLOR_BUFFER_BIT);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
   }
 
@@ -127,7 +142,8 @@ export class EscapeTimeFractalRenderer {
     const cached = this.programs.get(fractalType);
     if (cached) return cached;
 
-    const program = createProgram(this.gl, shaderByType[fractalType]);
+    const program = createProgram(this.gl, shaderByType[fractalType], fractalType);
+    if (!program) throw new Error(`No se pudo crear programa WebGL para ${fractalType}.`);
     const uniforms: ProgramBundle['uniforms'] = {
       resolution: this.gl.getUniformLocation(program, 'u_resolution'),
       center: this.gl.getUniformLocation(program, 'u_center'),
@@ -145,7 +161,24 @@ export class EscapeTimeFractalRenderer {
     };
 
     const bundle = { program, uniforms };
+    this.requireUniforms(bundle);
     this.programs.set(fractalType, bundle);
     return bundle;
+  }
+
+  private validateGradientProgram() {
+    const program = createProgram(this.gl, gradientFragmentShaderSource, 'gradient-validation');
+    if (!program) throw new Error('El shader mínimo de gradiente WebGL no compiló.');
+    this.gl.deleteProgram(program);
+  }
+
+  private requireUniforms(bundle: ProgramBundle) {
+    const missing = Object.entries(bundle.uniforms)
+      .filter(([, location]) => location === null)
+      .map(([name]) => name);
+
+    if (missing.length > 0) {
+      throw new Error(`Uniforms WebGL no encontrados: ${missing.join(', ')}.`);
+    }
   }
 }

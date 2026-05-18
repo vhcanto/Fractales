@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Application } from 'pixi.js';
 import { PixiFractalRenderer } from '../lib/fractal/pixi/PixiFractalRenderer';
 import type { FractalRenderInput } from '../types/fractal';
@@ -13,6 +13,7 @@ export function FractalPixiCanvas({ renderInput, onRendererError }: FractalPixiC
   const appRef = useRef<Application | null>(null);
   const rendererRef = useRef<PixiFractalRenderer | null>(null);
   const latestInputRef = useRef(renderInput);
+  const [statusMessage, setStatusMessage] = useState('Inicializando fallback PixiJS…');
 
   const onRendererErrorRef = useRef(onRendererError);
 
@@ -40,8 +41,15 @@ export function FractalPixiCanvas({ renderInput, onRendererError }: FractalPixiC
       const width = Math.max(host.clientWidth, 320);
       const height = Math.max(420, Math.min(width * 0.68, 720));
       host.style.minHeight = `${height}px`;
-      app.renderer.resize(width, height);
-      renderer.render(latestInputRef.current, width, height);
+      try {
+        app.renderer.resize(width, height);
+        renderer.render(latestInputRef.current, width, height);
+        window.setTimeout(() => setStatusMessage('Fallback PixiJS activo'), 0);
+      } catch (error) {
+        console.error('No fue posible renderizar PixiJS.', error);
+        window.setTimeout(() => setStatusMessage('PixiJS falló. Activando Canvas básico…'), 0);
+        onRendererErrorRef.current?.();
+      }
     };
 
     const initPixi = async () => {
@@ -74,6 +82,7 @@ export function FractalPixiCanvas({ renderInput, onRendererError }: FractalPixiC
         renderCurrentInput();
       } catch (error) {
         console.error('No fue posible iniciar PixiJS.', error);
+        window.setTimeout(() => setStatusMessage('PixiJS falló. Activando Canvas básico…'), 0);
         onRendererErrorRef.current?.();
       }
     };
@@ -99,12 +108,22 @@ export function FractalPixiCanvas({ renderInput, onRendererError }: FractalPixiC
 
     const width = Math.max(host.clientWidth, 320);
     const height = Math.max(420, Math.min(width * 0.68, 720));
-    app.renderer.resize(width, height);
-    renderer.render(renderInput, width, height);
+    try {
+      app.renderer.resize(width, height);
+      renderer.render(renderInput, width, height);
+      window.setTimeout(() => setStatusMessage('Fallback PixiJS activo'), 0);
+    } catch (error) {
+      console.error('No fue posible actualizar PixiJS.', error);
+      window.setTimeout(() => setStatusMessage('PixiJS falló. Activando Canvas básico…'), 0);
+      onRendererErrorRef.current?.();
+    }
   }, [renderInput]);
 
   return (
     <div className="overflow-hidden rounded-3xl border border-cyan-300/20 bg-slate-950/90 p-3 shadow-2xl shadow-cyan-500/20">
+      <div className="mb-3 inline-flex rounded-full border border-cyan-200/20 bg-cyan-300/10 px-3 py-1 text-xs font-semibold text-cyan-100">
+        {statusMessage}
+      </div>
       <div ref={containerRef} className="min-h-[420px] w-full rounded-2xl" />
     </div>
   );

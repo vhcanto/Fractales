@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { EscapeTimeFractalCanvas } from '../components/EscapeTimeFractalCanvas';
 import { FractalCanvas } from '../components/FractalCanvas';
 import { FractalControls, type FractalRenderMode } from '../components/FractalControls';
+import { FractalErrorBoundary } from '../components/FractalErrorBoundary';
 import { FractalPixiCanvas } from '../components/FractalPixiCanvas';
 import { ParameterPanel } from '../components/ParameterPanel';
 import { fractalPresets } from '../data/fractalPresets';
@@ -13,7 +14,6 @@ import {
   type EscapeTimePreset,
 } from '../lib/fractal/escape-time/presets/escapeTimePresets';
 import { cloneEscapeTimePreset, jitterPreset } from '../lib/fractal/escape-time/utils/fractalMath';
-import { hasPremiumFractal } from '../lib/fractal/pixi/PixiFractalRenderer';
 import { mapRemedyToVisualParams, pickRandomItem } from '../lib/remedyMapper';
 import type { FractalPreset, FractalRenderInput } from '../types/fractal';
 import type { Remedy } from '../types/remedy';
@@ -23,6 +23,17 @@ interface FractalSelection {
   legacyPreset: FractalPreset;
   escapePreset: EscapeTimePreset;
 }
+
+const premiumRemedyNames = new Set(['aconitum', 'pulsatilla', 'nux-vomica']);
+
+const normalizeRemedyName = (name: string): string =>
+  name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-');
+
+const hasPremiumFractal = (remedyName: string): boolean => premiumRemedyNames.has(normalizeRemedyName(remedyName));
 
 const defaultRemedy = remedies.find((remedy) => remedy.id === 'aconitum') ?? (remedies[0] as Remedy);
 const defaultLegacyPreset = fractalPresets.find((preset) => preset.id === 'dendritic-bloom') ?? (fractalPresets[0] as FractalPreset);
@@ -37,6 +48,7 @@ export function FractalLab() {
   const [selection, setSelection] = useState<FractalSelection>(initialSelection);
   const [renderMode, setRenderMode] = useState<FractalRenderMode>('math');
   const [pixiUnavailable, setPixiUnavailable] = useState(false);
+  const [allRenderersFailed, setAllRenderersFailed] = useState(false);
 
   const renderInput = useMemo<FractalRenderInput>(() => {
     const visualParameters = mapRemedyToVisualParams(selection.remedy, selection.legacyPreset);
@@ -53,6 +65,7 @@ export function FractalLab() {
     const remedy = remedies.find((item) => item.id === remedyId);
     if (!remedy) return;
     setPixiUnavailable(false);
+    setAllRenderersFailed(false);
     setSelection((current) => ({
       ...current,
       remedy,
@@ -92,6 +105,7 @@ export function FractalLab() {
     const remedy = pickRandomItem(remedies);
     const escapePreset = jitterPreset(getEscapeTimePresetByRemedyId(remedy.id));
     setPixiUnavailable(false);
+    setAllRenderersFailed(false);
     setSelection({
       remedy,
       legacyPreset: pickRandomItem(fractalPresets.filter((preset) => preset.id !== 'neural-spiral') || fractalPresets),
@@ -101,6 +115,12 @@ export function FractalLab() {
 
   const isPremiumSelection = hasPremiumFractal(selection.remedy.name);
   const effectiveRenderMode: FractalRenderMode = renderMode === 'premium' && (!isPremiumSelection || pixiUnavailable) ? 'basic' : renderMode;
+
+  const finalFallbackCard = (
+    <div className="flex min-h-[420px] items-center justify-center rounded-3xl border border-rose-300/30 bg-rose-950/30 p-6 text-center text-rose-100 shadow-2xl shadow-rose-950/20">
+      No se pudo cargar el render fractal. Revisa consola.
+    </div>
+  );
 
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
@@ -125,13 +145,17 @@ export function FractalLab() {
           selectedRemedyId={selection.remedy.id}
           zoom={selection.escapePreset.zoom}
         />
-        {effectiveRenderMode === 'math' ? (
-          <EscapeTimeFractalCanvas preset={selection.escapePreset} onRendererError={() => setRenderMode('premium')} />
-        ) : effectiveRenderMode === 'premium' ? (
-          <FractalPixiCanvas renderInput={renderInput} onRendererError={() => setPixiUnavailable(true)} />
-        ) : (
-          <FractalCanvas renderInput={renderInput} />
-        )}
+        <FractalErrorBoundary fallback={finalFallbackCard} onError={() => setAllRenderersFailed(true)}>
+          {allRenderersFailed ? (
+            finalFallbackCard
+          ) : effectiveRenderMode === 'math' ? (
+            <EscapeTimeFractalCanvas preset={selection.escapePreset} onRendererError={() => setRenderMode('premium')} />
+          ) : effectiveRenderMode === 'premium' ? (
+            <FractalPixiCanvas renderInput={renderInput} onRendererError={() => setPixiUnavailable(true)} />
+          ) : (
+            <FractalCanvas renderInput={renderInput} onRendererError={() => setAllRenderersFailed(true)} />
+          )}
+        </FractalErrorBoundary>
       </main>
       <ParameterPanel escapePreset={selection.escapePreset} renderInput={renderInput} renderMode={effectiveRenderMode} />
     </div>

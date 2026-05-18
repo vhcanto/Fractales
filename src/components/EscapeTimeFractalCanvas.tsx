@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { EscapeTimeFractalRenderer } from '../lib/fractal/escape-time/EscapeTimeFractalRenderer';
 import type { EscapeTimePreset } from '../lib/fractal/escape-time/presets/escapeTimePresets';
 
@@ -7,11 +7,17 @@ interface EscapeTimeFractalCanvasProps {
   onRendererError?: () => void;
 }
 
+const MIN_CANVAS_WIDTH = 320;
+const MIN_CANVAS_HEIGHT = 440;
+
 export function EscapeTimeFractalCanvas({ preset, onRendererError }: EscapeTimeFractalCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const rendererRef = useRef<EscapeTimeFractalRenderer | null>(null);
   const latestPresetRef = useRef(preset);
   const onRendererErrorRef = useRef(onRendererError);
+  const hasFailedRef = useRef(false);
+  const [statusMessage, setStatusMessage] = useState('Preparando render matemático WebGL…');
 
   useEffect(() => {
     latestPresetRef.current = preset;
@@ -23,34 +29,70 @@ export function EscapeTimeFractalCanvas({ preset, onRendererError }: EscapeTimeF
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return undefined;
+    const host = containerRef.current;
+    if (!canvas || !host) return undefined;
 
-    const host = canvas.parentElement;
     let resizeObserver: ResizeObserver | null = null;
     let frame = 0;
+    let isMounted = true;
+
+    const failSafely = (message: string, error: unknown) => {
+      if (hasFailedRef.current) return;
+      hasFailedRef.current = true;
+      console.error(message, error);
+      window.setTimeout(() => setStatusMessage('WebGL falló. Activando fallback visible…'), 0);
+      rendererRef.current?.destroy();
+      rendererRef.current = null;
+      onRendererErrorRef.current?.();
+    };
+
+    const measureHost = () => {
+      const rect = host.getBoundingClientRect();
+      const measuredWidth = rect.width || host.clientWidth;
+      if (!Number.isFinite(measuredWidth) || measuredWidth < 1) return null;
+
+      const width = Math.max(Math.floor(measuredWidth), MIN_CANVAS_WIDTH);
+      const height = Math.max(MIN_CANVAS_HEIGHT, Math.min(width * 0.68, 760));
+      return { width, height };
+    };
 
     const renderCurrentPreset = () => {
-      if (!host || !rendererRef.current) return;
-      const width = Math.max(host.clientWidth, 320);
-      const height = Math.max(440, Math.min(width * 0.68, 760));
-      rendererRef.current.resize(width, height);
-      rendererRef.current.render(latestPresetRef.current);
+      if (!isMounted || hasFailedRef.current) return;
+
+      const size = measureHost();
+      if (!size) {
+        setStatusMessage('Esperando dimensiones válidas del contenedor…');
+        frame = window.requestAnimationFrame(renderCurrentPreset);
+        return;
+      }
+
+      try {
+        if (!rendererRef.current) {
+          rendererRef.current = new EscapeTimeFractalRenderer(canvas);
+        }
+
+        const dpr = typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1;
+        rendererRef.current.resize(size.width, size.height, dpr);
+        rendererRef.current.render(latestPresetRef.current);
+        setStatusMessage('Render matemático WebGL activo');
+      } catch (error) {
+        failSafely('No fue posible renderizar el fractal matemático WebGL.', error);
+      }
     };
 
     try {
-      rendererRef.current = new EscapeTimeFractalRenderer(canvas);
       resizeObserver = new ResizeObserver(() => {
         window.cancelAnimationFrame(frame);
         frame = window.requestAnimationFrame(renderCurrentPreset);
       });
-      if (host) resizeObserver.observe(host);
-      renderCurrentPreset();
+      resizeObserver.observe(host);
+      frame = window.requestAnimationFrame(renderCurrentPreset);
     } catch (error) {
-      console.error('No fue posible iniciar el render matemático WebGL.', error);
-      onRendererErrorRef.current?.();
+      failSafely('No fue posible observar el tamaño del contenedor WebGL.', error);
     }
 
     return () => {
+      isMounted = false;
       window.cancelAnimationFrame(frame);
       resizeObserver?.disconnect();
       rendererRef.current?.destroy();
@@ -59,21 +101,37 @@ export function EscapeTimeFractalCanvas({ preset, onRendererError }: EscapeTimeF
   }, []);
 
   useEffect(() => {
-    const host = canvasRef.current?.parentElement;
-    if (!host || !rendererRef.current) return;
-    const width = Math.max(host.clientWidth, 320);
-    const height = Math.max(440, Math.min(width * 0.68, 760));
-    rendererRef.current.resize(width, height);
-    rendererRef.current.render(preset);
+    const host = containerRef.current;
+    const renderer = rendererRef.current;
+    if (!host || !renderer || hasFailedRef.current) return;
+
+    const rect = host.getBoundingClientRect();
+    const width = Math.max(Math.floor(rect.width || host.clientWidth), MIN_CANVAS_WIDTH);
+    const height = Math.max(MIN_CANVAS_HEIGHT, Math.min(width * 0.68, 760));
+
+    try {
+      renderer.resize(width, height, typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1);
+      renderer.render(preset);
+    } catch (error) {
+      hasFailedRef.current = true;
+      console.error('No fue posible actualizar el render matemático WebGL.', error);
+      window.setTimeout(() => setStatusMessage('WebGL falló. Activando fallback visible…'), 0);
+      onRendererErrorRef.current?.();
+    }
   }, [preset]);
 
   return (
     <div className="overflow-hidden rounded-3xl border border-cyan-200/25 bg-slate-950 p-3 shadow-2xl shadow-cyan-500/25">
-      <canvas
-        ref={canvasRef}
-        className="block min-h-[440px] w-full rounded-2xl bg-slate-950"
-        aria-label="Fractal matemático WebGL generado por shader de escape-time"
-      />
+      <div className="mb-3 inline-flex rounded-full border border-cyan-200/20 bg-cyan-300/10 px-3 py-1 text-xs font-semibold text-cyan-100">
+        {statusMessage}
+      </div>
+      <div ref={containerRef} className="min-h-[440px] w-full rounded-2xl">
+        <canvas
+          ref={canvasRef}
+          className="block min-h-[440px] w-full rounded-2xl bg-slate-950"
+          aria-label="Fractal matemático WebGL generado por shader de escape-time"
+        />
+      </div>
     </div>
   );
 }

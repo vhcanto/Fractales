@@ -8,6 +8,18 @@ void main() {
 }
 `;
 
+export const gradientFragmentShaderSource = `
+precision highp float;
+varying vec2 v_uv;
+uniform vec2 u_resolution;
+
+void main() {
+  vec2 safeResolution = max(u_resolution, vec2(1.0));
+  vec2 uv = gl_FragCoord.xy / safeResolution;
+  gl_FragColor = vec4(uv.x, uv.y, 0.72 + 0.18 * sin(uv.x * 6.28318), 1.0);
+}
+`;
+
 export const shaderPrelude = `
 precision highp float;
 
@@ -35,8 +47,9 @@ vec2 rotatePoint(vec2 point, float angle) {
 }
 
 vec2 pixelToPlane(vec2 offset) {
-  vec2 uv = (gl_FragCoord.xy + offset) / u_resolution.xy;
-  vec2 p = (uv - 0.5) * vec2(u_resolution.x / u_resolution.y, 1.0);
+  vec2 safeResolution = max(u_resolution.xy, vec2(1.0));
+  vec2 uv = (gl_FragCoord.xy + offset) / safeResolution;
+  vec2 p = (uv - 0.5) * vec2(safeResolution.x / safeResolution.y, 1.0);
   p = rotatePoint(p, u_rotation);
   return u_center + p * (3.2 / max(u_zoom, 0.0001));
 }
@@ -79,27 +92,42 @@ vec4 shade(float smoothIteration, float trap, vec2 point) {
 }
 `;
 
-export const compileShader = (gl: WebGLRenderingContext, type: number, source: string): WebGLShader => {
+export const compileShader = (gl: WebGLRenderingContext, type: number, source: string, label: string): WebGLShader | null => {
   const shader = gl.createShader(type);
-  if (!shader) throw new Error('No fue posible crear shader WebGL.');
+  if (!shader) {
+    console.error(`No fue posible crear shader WebGL: ${label}.`);
+    return null;
+  }
 
   gl.shaderSource(shader, source);
   gl.compileShader(shader);
 
   if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
     const info = gl.getShaderInfoLog(shader) ?? 'Error desconocido compilando shader.';
+    console.error(`Error compilando shader WebGL (${label}):`, info);
     gl.deleteShader(shader);
-    throw new Error(info);
+    return null;
   }
 
   return shader;
 };
 
-export const createProgram = (gl: WebGLRenderingContext, fragmentSource: string): WebGLProgram => {
-  const vertexShader = compileShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
-  const fragmentShader = compileShader(gl, gl.FRAGMENT_SHADER, fragmentSource);
+export const createProgram = (gl: WebGLRenderingContext, fragmentSource: string, label = 'escape-time'): WebGLProgram | null => {
+  const vertexShader = compileShader(gl, gl.VERTEX_SHADER, vertexShaderSource, `${label}:vertex`);
+  const fragmentShader = compileShader(gl, gl.FRAGMENT_SHADER, fragmentSource, `${label}:fragment`);
+  if (!vertexShader || !fragmentShader) {
+    if (vertexShader) gl.deleteShader(vertexShader);
+    if (fragmentShader) gl.deleteShader(fragmentShader);
+    return null;
+  }
+
   const program = gl.createProgram();
-  if (!program) throw new Error('No fue posible crear programa WebGL.');
+  if (!program) {
+    console.error(`No fue posible crear programa WebGL (${label}).`);
+    gl.deleteShader(vertexShader);
+    gl.deleteShader(fragmentShader);
+    return null;
+  }
 
   gl.attachShader(program, vertexShader);
   gl.attachShader(program, fragmentShader);
@@ -109,8 +137,9 @@ export const createProgram = (gl: WebGLRenderingContext, fragmentSource: string)
 
   if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
     const info = gl.getProgramInfoLog(program) ?? 'Error desconocido enlazando programa WebGL.';
+    console.error(`Error enlazando programa WebGL (${label}):`, info);
     gl.deleteProgram(program);
-    throw new Error(info);
+    return null;
   }
 
   return program;
