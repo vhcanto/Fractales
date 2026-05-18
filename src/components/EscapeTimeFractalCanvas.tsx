@@ -4,11 +4,17 @@ import type { EscapeTimePreset } from '../lib/fractal/escape-time/presets/escape
 
 interface EscapeTimeFractalCanvasProps {
   preset: EscapeTimePreset;
-  onRendererError?: () => void;
+  onRendererError?: (error: unknown) => void;
 }
 
 const MIN_CANVAS_WIDTH = 320;
 const MIN_CANVAS_HEIGHT = 440;
+
+const getTechnicalMessage = (error: unknown): string => {
+  if (error instanceof Error && error.message.trim()) return error.message;
+  if (typeof error === 'string' && error.trim()) return error;
+  return 'Error WebGL desconocido.';
+};
 
 export function EscapeTimeFractalCanvas({ preset, onRendererError }: EscapeTimeFractalCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -17,7 +23,7 @@ export function EscapeTimeFractalCanvas({ preset, onRendererError }: EscapeTimeF
   const latestPresetRef = useRef(preset);
   const onRendererErrorRef = useRef(onRendererError);
   const hasFailedRef = useRef(false);
-  const [statusMessage, setStatusMessage] = useState('Preparando render matemático WebGL…');
+  const [statusMessage, setStatusMessage] = useState('Preparando prueba interna WebGL…');
 
   useEffect(() => {
     latestPresetRef.current = preset;
@@ -35,15 +41,17 @@ export function EscapeTimeFractalCanvas({ preset, onRendererError }: EscapeTimeF
     let resizeObserver: ResizeObserver | null = null;
     let frame = 0;
     let isMounted = true;
+    let gradientPassed = false;
 
     const failSafely = (message: string, error: unknown) => {
       if (hasFailedRef.current) return;
       hasFailedRef.current = true;
+      const reason = getTechnicalMessage(error);
       console.error(message, error);
-      window.setTimeout(() => setStatusMessage('WebGL falló. Activando fallback visible…'), 0);
+      window.setTimeout(() => setStatusMessage(`WebGL no pudo renderizar: ${reason}`), 0);
       rendererRef.current?.destroy();
       rendererRef.current = null;
-      onRendererErrorRef.current?.();
+      onRendererErrorRef.current?.(error);
     };
 
     const measureHost = () => {
@@ -61,7 +69,7 @@ export function EscapeTimeFractalCanvas({ preset, onRendererError }: EscapeTimeF
 
       const size = measureHost();
       if (!size) {
-        setStatusMessage('Esperando dimensiones válidas del contenedor…');
+        setStatusMessage('Esperando dimensiones válidas del contenedor WebGL…');
         frame = window.requestAnimationFrame(renderCurrentPreset);
         return;
       }
@@ -73,6 +81,13 @@ export function EscapeTimeFractalCanvas({ preset, onRendererError }: EscapeTimeF
 
         const dpr = typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1;
         rendererRef.current.resize(size.width, size.height, dpr);
+
+        if (!gradientPassed) {
+          rendererRef.current.renderGradientTest();
+          gradientPassed = true;
+          setStatusMessage('Prueba WebGL de gradiente correcta. Activando fractal…');
+        }
+
         rendererRef.current.render(latestPresetRef.current);
         setStatusMessage('Render matemático WebGL activo');
       } catch (error) {
@@ -106,7 +121,10 @@ export function EscapeTimeFractalCanvas({ preset, onRendererError }: EscapeTimeF
     if (!host || !renderer || hasFailedRef.current) return;
 
     const rect = host.getBoundingClientRect();
-    const width = Math.max(Math.floor(rect.width || host.clientWidth), MIN_CANVAS_WIDTH);
+    const measuredWidth = rect.width || host.clientWidth;
+    if (!Number.isFinite(measuredWidth) || measuredWidth < 1) return;
+
+    const width = Math.max(Math.floor(measuredWidth), MIN_CANVAS_WIDTH);
     const height = Math.max(MIN_CANVAS_HEIGHT, Math.min(width * 0.68, 760));
 
     try {
@@ -115,8 +133,8 @@ export function EscapeTimeFractalCanvas({ preset, onRendererError }: EscapeTimeF
     } catch (error) {
       hasFailedRef.current = true;
       console.error('No fue posible actualizar el render matemático WebGL.', error);
-      window.setTimeout(() => setStatusMessage('WebGL falló. Activando fallback visible…'), 0);
-      onRendererErrorRef.current?.();
+      window.setTimeout(() => setStatusMessage(`WebGL no pudo renderizar: ${getTechnicalMessage(error)}`), 0);
+      onRendererErrorRef.current?.(error);
     }
   }, [preset]);
 

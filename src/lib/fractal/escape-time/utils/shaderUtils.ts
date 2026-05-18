@@ -16,7 +16,9 @@ uniform vec2 u_resolution;
 void main() {
   vec2 safeResolution = max(u_resolution, vec2(1.0));
   vec2 uv = gl_FragCoord.xy / safeResolution;
-  gl_FragColor = vec4(uv.x, uv.y, 0.72 + 0.18 * sin(uv.x * 6.28318), 1.0);
+  vec3 color = mix(vec3(0.0, 0.12, 0.22), vec3(0.95, 0.25, 1.0), uv.x);
+  color = mix(color, vec3(0.18, 0.95, 1.0), uv.y * 0.55);
+  gl_FragColor = vec4(color, 1.0);
 }
 `;
 
@@ -38,7 +40,6 @@ uniform float u_brightness;
 uniform float u_gamma;
 uniform float u_rotation;
 uniform vec2 u_juliaC;
-uniform float u_progress;
 
 vec2 rotatePoint(vec2 point, float angle) {
   float s = sin(angle);
@@ -104,7 +105,7 @@ export const compileShader = (gl: WebGLRenderingContext, type: number, source: s
 
   if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
     const info = gl.getShaderInfoLog(shader) ?? 'Error desconocido compilando shader.';
-    console.error(`Error compilando shader WebGL (${label}):`, info);
+    console.error(`Error compilando shader WebGL (${label}):\n${info}\nFuente:\n${source}`);
     gl.deleteShader(shader);
     return null;
   }
@@ -137,9 +138,15 @@ export const createProgram = (gl: WebGLRenderingContext, fragmentSource: string,
 
   if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
     const info = gl.getProgramInfoLog(program) ?? 'Error desconocido enlazando programa WebGL.';
-    console.error(`Error enlazando programa WebGL (${label}):`, info);
+    console.error(`Error enlazando programa WebGL (${label}):\n${info}`);
     gl.deleteProgram(program);
     return null;
+  }
+
+  gl.validateProgram(program);
+  if (!gl.getProgramParameter(program, gl.VALIDATE_STATUS)) {
+    const info = gl.getProgramInfoLog(program) ?? 'Error desconocido validando programa WebGL.';
+    console.warn(`Advertencia validando programa WebGL (${label}):\n${info}`);
   }
 
   return program;
