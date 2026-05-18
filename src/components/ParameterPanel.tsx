@@ -1,11 +1,8 @@
-import { fractalTypeLabels, getDepthLevel, type EscapeTimePreset } from '../lib/fractal/escape-time/presets/escapeTimePresets';
-import type { ComplexPoint } from '../lib/fractal/escape-time/camera/fractalCamera';
-
+import { fractalTypeLabels, getDepthLevel, type EscapeTimePreset, type RenderStage } from '../lib/fractal/escape-time/presets/escapeTimePresets';
 interface ParameterPanelProps {
   escapePreset: EscapeTimePreset;
-  complexPoint: ComplexPoint | null;
   webglStatus: 'activo' | 'error';
-  renderStatus: 'recalculando' | 'estable';
+  renderStatus: RenderStage;
   compact?: boolean;
 }
 
@@ -15,7 +12,7 @@ const formatNumber = (value: number, digits = 6) => {
   return value.toFixed(digits);
 };
 
-export function ParameterPanel({ escapePreset, complexPoint, webglStatus, renderStatus, compact = false }: ParameterPanelProps) {
+export function ParameterPanel({ escapePreset, webglStatus, renderStatus, compact = false }: ParameterPanelProps) {
   const depthLevel = getDepthLevel(escapePreset.zoom);
 
   return (
@@ -28,12 +25,10 @@ export function ParameterPanel({ escapePreset, complexPoint, webglStatus, render
           <p className="text-slate-500">Tipo de fractal</p>
           <p className="mt-1 font-semibold text-cyan-200">{fractalTypeLabels[escapePreset.fractalType]}</p>
         </div>
-        {!compact ? (
-          <div className="rounded-2xl bg-white/[0.04] p-4">
-            <p className="text-slate-500">Ecuación base</p>
-            <p className="mt-1 font-semibold text-white">{escapePreset.equation}</p>
-          </div>
-        ) : null}
+        <div className="rounded-2xl bg-white/[0.04] p-4">
+          <p className="text-slate-500">Ecuación base</p>
+          <p className="mt-1 font-semibold text-white">{escapePreset.equation}</p>
+        </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-2xl bg-white/[0.04] p-4">
             <p className="text-slate-500">Zoom actual</p>
@@ -50,8 +45,8 @@ export function ParameterPanel({ escapePreset, complexPoint, webglStatus, render
             <p className="mt-1 font-semibold text-cyan-200">{escapePreset.maxIterations}</p>
           </div>
           <div className="rounded-2xl bg-white/[0.04] p-4">
-            <p className="text-slate-500">Preset</p>
-            <p className="mt-1 font-semibold text-white">{escapePreset.name}</p>
+            <p className="text-slate-500">Samples activos</p>
+            <p className="mt-1 font-semibold text-white">{escapePreset.samples}</p>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -66,35 +61,14 @@ export function ParameterPanel({ escapePreset, complexPoint, webglStatus, render
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-2xl bg-white/[0.04] p-4">
-            <p className="text-slate-500">Cursor Re(c)</p>
-            <p className="mt-1 font-mono text-xs font-semibold text-white">{complexPoint ? formatNumber(complexPoint.x, 9) : '—'}</p>
-          </div>
-          <div className="rounded-2xl bg-white/[0.04] p-4">
-            <p className="text-slate-500">Cursor Im(c)</p>
-            <p className="mt-1 font-mono text-xs font-semibold text-white">{complexPoint ? formatNumber(complexPoint.y, 9) : '—'}</p>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-2xl bg-white/[0.04] p-4">
             <p className="text-slate-500">Estado WebGL</p>
             <p className={`mt-1 font-semibold ${webglStatus === 'error' ? 'text-rose-200' : 'text-emerald-200'}`}>{webglStatus}</p>
           </div>
           <div className="rounded-2xl bg-white/[0.04] p-4">
-            <p className="text-slate-500">Estado render</p>
-            <p className={`mt-1 font-semibold ${renderStatus === 'recalculando' ? 'text-amber-200' : 'text-emerald-200'}`}>{renderStatus}</p>
+            <p className="text-slate-500">Render stage</p>
+            <p className={`mt-1 font-semibold ${renderStatus !== 'final' ? 'text-amber-200' : 'text-emerald-200'}`}>{renderStatus}</p>
           </div>
         </div>
-        {!compact ? (
-          <div className="rounded-2xl border border-cyan-300/15 bg-cyan-300/10 p-4 text-cyan-50">
-            <p className="font-semibold">Instrucciones</p>
-            <ul className="mt-2 space-y-1 text-slate-300">
-              <li>Scroll sobre el canvas: zoom sin mover la página</li>
-              <li>Arrastrar: mover el mapa fractal</li>
-              <li>Doble clic: acercar</li>
-              <li>Vista completa / Zona profunda: saltos rápidos por fractal</li>
-            </ul>
-          </div>
-        ) : null}
       </section>
     </aside>
   );

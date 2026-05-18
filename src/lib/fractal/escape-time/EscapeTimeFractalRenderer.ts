@@ -20,6 +20,7 @@ interface ProgramBundle {
     gamma: WebGLUniformLocation | null;
     rotation: WebGLUniformLocation | null;
     juliaC: WebGLUniformLocation | null;
+    samples: WebGLUniformLocation | null;
   };
 }
 
@@ -112,6 +113,7 @@ export class EscapeTimeFractalRenderer {
     this.setUniform1f(bundle.uniforms.gamma, preset.gamma);
     this.setUniform1f(bundle.uniforms.rotation, preset.rotation ?? 0);
     this.setUniform2f(bundle.uniforms.juliaC, preset.juliaC?.x ?? -0.7269, preset.juliaC?.y ?? 0.1889);
+    this.setUniform1i(bundle.uniforms.samples, Math.min(Math.max(Math.round(preset.samples ?? 1), 1), 4));
 
     gl.clear(gl.COLOR_BUFFER_BIT);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
@@ -179,6 +181,7 @@ export class EscapeTimeFractalRenderer {
       gamma: this.gl.getUniformLocation(program, 'u_gamma'),
       rotation: this.gl.getUniformLocation(program, 'u_rotation'),
       juliaC: this.gl.getUniformLocation(program, 'u_juliaC'),
+      samples: this.gl.getUniformLocation(program, 'u_samples'),
     };
 
     const bundle = { program, uniforms };
