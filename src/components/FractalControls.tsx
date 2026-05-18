@@ -3,8 +3,11 @@ import { fractalTypeLabels, type EscapeTimeFractalType } from '../lib/fractal/es
 interface FractalControlsProps {
   selectedFractalType: EscapeTimeFractalType;
   onFractalTypeChange: (fractalType: EscapeTimeFractalType) => void;
+  onFullView: () => void;
+  onDeepView: () => void;
   onRegenerateView: () => void;
   onResetView: () => void;
+  onEnterExploration: () => void;
   showRetryWebGL?: boolean;
   onRetryWebGL: () => void;
 }
@@ -14,8 +17,11 @@ const fractalTypes: EscapeTimeFractalType[] = ['mandelbrot', 'julia', 'burningSh
 export function FractalControls({
   selectedFractalType,
   onFractalTypeChange,
+  onFullView,
+  onDeepView,
   onRegenerateView,
   onResetView,
+  onEnterExploration,
   onRetryWebGL,
   showRetryWebGL = false,
 }: FractalControlsProps) {
@@ -23,10 +29,10 @@ export function FractalControls({
     <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 shadow-glow">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-sm uppercase tracking-[0.35em] text-cyan-300">Fractal Renderer Lab · v05-18-08</p>
+          <p className="text-sm uppercase tracking-[0.35em] text-cyan-300">Fractal Renderer Lab · v05-18-09</p>
           <h2 className="mt-2 text-3xl font-semibold text-white">Fractal Renderer Lab</h2>
           <p className="mt-2 max-w-2xl text-sm text-slate-400">
-            Exploración matemática WebGL de fractales escape-time reales con cámara interactiva, suavizado y paletas calibradas.
+            Exploración matemática WebGL de Mandelbrot, Julia Set y Burning Ship con cámara interactiva, zoom profundo y paletas calibradas.
           </p>
           <p className="mt-3 inline-flex rounded-full border border-cyan-300/25 bg-cyan-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-cyan-100">
             Render matemático WebGL
@@ -44,6 +50,13 @@ export function FractalControls({
           ) : null}
           <button
             type="button"
+            onClick={onEnterExploration}
+            className="rounded-2xl bg-emerald-300 px-5 py-3 font-semibold text-slate-950 transition hover:-translate-y-0.5 hover:bg-emerald-200 hover:shadow-lg hover:shadow-emerald-500/25 focus:outline-none focus:ring-2 focus:ring-emerald-100 focus:ring-offset-2 focus:ring-offset-slate-950"
+          >
+            Modo exploración
+          </button>
+          <button
+            type="button"
             onClick={onRegenerateView}
             className="rounded-2xl bg-cyan-400 px-5 py-3 font-semibold text-slate-950 transition hover:-translate-y-0.5 hover:bg-cyan-300 hover:shadow-lg hover:shadow-cyan-500/25 focus:outline-none focus:ring-2 focus:ring-cyan-200 focus:ring-offset-2 focus:ring-offset-slate-950"
           >
@@ -59,7 +72,7 @@ export function FractalControls({
         </div>
       </div>
 
-      <div className="mt-5 grid gap-4 md:grid-cols-[minmax(0,420px)]">
+      <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,420px)_1fr] lg:items-end">
         <label className="space-y-2 text-sm font-medium text-slate-200">
           <span>Tipo de fractal</span>
           <select
@@ -74,6 +87,30 @@ export function FractalControls({
             ))}
           </select>
         </label>
+
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={onFullView}
+            className="rounded-2xl border border-cyan-300/30 px-4 py-3 text-sm font-semibold text-cyan-100 transition hover:-translate-y-0.5 hover:bg-cyan-300/10"
+          >
+            Vista completa
+          </button>
+          <button
+            type="button"
+            onClick={onDeepView}
+            className="rounded-2xl border border-fuchsia-300/30 px-4 py-3 text-sm font-semibold text-fuchsia-100 transition hover:-translate-y-0.5 hover:bg-fuchsia-300/10"
+          >
+            Zona profunda
+          </button>
+          <button
+            type="button"
+            onClick={onResetView}
+            className="rounded-2xl border border-white/15 px-4 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-white/[0.08]"
+          >
+            Reset vista
+          </button>
+        </div>
       </div>
     </div>
   );

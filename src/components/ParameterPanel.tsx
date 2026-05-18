@@ -1,10 +1,11 @@
-import { fractalTypeLabels, type EscapeTimePreset } from '../lib/fractal/escape-time/presets/escapeTimePresets';
+import { fractalTypeLabels, getDepthLevel, type EscapeTimePreset } from '../lib/fractal/escape-time/presets/escapeTimePresets';
 import type { ComplexPoint } from '../lib/fractal/escape-time/camera/fractalCamera';
 
 interface ParameterPanelProps {
   escapePreset: EscapeTimePreset;
   complexPoint: ComplexPoint | null;
   webglStatus: 'activo' | 'error';
+  compact?: boolean;
 }
 
 const formatNumber = (value: number, digits = 6) => {
@@ -13,10 +14,12 @@ const formatNumber = (value: number, digits = 6) => {
   return value.toFixed(digits);
 };
 
-export function ParameterPanel({ escapePreset, complexPoint, webglStatus }: ParameterPanelProps) {
+export function ParameterPanel({ escapePreset, complexPoint, webglStatus, compact = false }: ParameterPanelProps) {
+  const depthLevel = getDepthLevel(escapePreset.zoom);
+
   return (
-    <aside className="rounded-3xl border border-white/10 bg-slate-950/70 p-5 xl:sticky xl:top-6">
-      <p className="text-xs uppercase tracking-[0.35em] text-cyan-300">Panel simplificado</p>
+    <aside className={`rounded-3xl border border-white/10 bg-slate-950/70 p-5 ${compact ? 'h-full overflow-y-auto' : 'xl:sticky xl:top-6'}`}>
+      <p className="text-xs uppercase tracking-[0.35em] text-cyan-300">Panel de exploración</p>
       <h3 className="mt-2 text-xl font-semibold text-white">Estado WebGL</h3>
 
       <section className="mt-6 grid gap-3 text-sm">
@@ -24,18 +27,30 @@ export function ParameterPanel({ escapePreset, complexPoint, webglStatus }: Para
           <p className="text-slate-500">Tipo de fractal</p>
           <p className="mt-1 font-semibold text-cyan-200">{fractalTypeLabels[escapePreset.fractalType]}</p>
         </div>
-        <div className="rounded-2xl bg-white/[0.04] p-4">
-          <p className="text-slate-500">Ecuación base</p>
-          <p className="mt-1 font-semibold text-white">{escapePreset.equation}</p>
-        </div>
+        {!compact ? (
+          <div className="rounded-2xl bg-white/[0.04] p-4">
+            <p className="text-slate-500">Ecuación base</p>
+            <p className="mt-1 font-semibold text-white">{escapePreset.equation}</p>
+          </div>
+        ) : null}
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-2xl bg-white/[0.04] p-4">
             <p className="text-slate-500">Zoom actual</p>
             <p className="mt-1 font-semibold text-cyan-200">{formatNumber(escapePreset.zoom, 3)}×</p>
           </div>
           <div className="rounded-2xl bg-white/[0.04] p-4">
-            <p className="text-slate-500">Iteraciones</p>
+            <p className="text-slate-500">Nivel de profundidad</p>
+            <p className="mt-1 font-semibold text-fuchsia-100">{depthLevel}</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-2xl bg-white/[0.04] p-4">
+            <p className="text-slate-500">Iteraciones activas</p>
             <p className="mt-1 font-semibold text-cyan-200">{escapePreset.maxIterations}</p>
+          </div>
+          <div className="rounded-2xl bg-white/[0.04] p-4">
+            <p className="text-slate-500">Preset</p>
+            <p className="mt-1 font-semibold text-white">{escapePreset.name}</p>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -62,15 +77,17 @@ export function ParameterPanel({ escapePreset, complexPoint, webglStatus }: Para
           <p className="text-slate-500">Estado WebGL</p>
           <p className={`mt-1 font-semibold ${webglStatus === 'error' ? 'text-rose-200' : 'text-emerald-200'}`}>{webglStatus}</p>
         </div>
-        <div className="rounded-2xl border border-cyan-300/15 bg-cyan-300/10 p-4 text-cyan-50">
-          <p className="font-semibold">Instrucciones</p>
-          <ul className="mt-2 space-y-1 text-slate-300">
-            <li>Scroll: zoom</li>
-            <li>Arrastrar: mover</li>
-            <li>Doble clic: acercar</li>
-            <li>Reset: volver</li>
-          </ul>
-        </div>
+        {!compact ? (
+          <div className="rounded-2xl border border-cyan-300/15 bg-cyan-300/10 p-4 text-cyan-50">
+            <p className="font-semibold">Instrucciones</p>
+            <ul className="mt-2 space-y-1 text-slate-300">
+              <li>Scroll sobre el canvas: zoom sin mover la página</li>
+              <li>Arrastrar: mover el mapa fractal</li>
+              <li>Doble clic: acercar</li>
+              <li>Vista completa / Zona profunda: saltos rápidos por fractal</li>
+            </ul>
+          </div>
+        ) : null}
       </section>
     </aside>
   );

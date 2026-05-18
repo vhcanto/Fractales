@@ -103,7 +103,7 @@ export class EscapeTimeFractalRenderer {
     this.setUniform2f(bundle.uniforms.resolution, this.canvas.width, this.canvas.height);
     this.setUniform2f(bundle.uniforms.center, preset.centerX, preset.centerY);
     this.setUniform1f(bundle.uniforms.zoom, preset.zoom);
-    this.setUniform1i(bundle.uniforms.maxIterations, Math.min(Math.max(Math.round(preset.maxIterations), 24), 1400));
+    this.setUniform1i(bundle.uniforms.maxIterations, Math.min(Math.max(Math.round(preset.maxIterations), 24), 3000));
     this.setUniform1f(bundle.uniforms.escapeRadius, preset.escapeRadius);
     if (bundle.uniforms.palette) gl.uniform3fv(bundle.uniforms.palette, flatPalette);
     this.setUniform1f(bundle.uniforms.colorShift, preset.colorShift);
