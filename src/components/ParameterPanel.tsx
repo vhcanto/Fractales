@@ -5,6 +5,7 @@ interface ParameterPanelProps {
   escapePreset: EscapeTimePreset;
   complexPoint: ComplexPoint | null;
   webglStatus: 'activo' | 'error';
+  renderStatus: 'recalculando' | 'estable';
   compact?: boolean;
 }
 
@@ -14,7 +15,7 @@ const formatNumber = (value: number, digits = 6) => {
   return value.toFixed(digits);
 };
 
-export function ParameterPanel({ escapePreset, complexPoint, webglStatus, compact = false }: ParameterPanelProps) {
+export function ParameterPanel({ escapePreset, complexPoint, webglStatus, renderStatus, compact = false }: ParameterPanelProps) {
   const depthLevel = getDepthLevel(escapePreset.zoom);
 
   return (
@@ -73,9 +74,15 @@ export function ParameterPanel({ escapePreset, complexPoint, webglStatus, compac
             <p className="mt-1 font-mono text-xs font-semibold text-white">{complexPoint ? formatNumber(complexPoint.y, 9) : '—'}</p>
           </div>
         </div>
-        <div className="rounded-2xl bg-white/[0.04] p-4">
-          <p className="text-slate-500">Estado WebGL</p>
-          <p className={`mt-1 font-semibold ${webglStatus === 'error' ? 'text-rose-200' : 'text-emerald-200'}`}>{webglStatus}</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-2xl bg-white/[0.04] p-4">
+            <p className="text-slate-500">Estado WebGL</p>
+            <p className={`mt-1 font-semibold ${webglStatus === 'error' ? 'text-rose-200' : 'text-emerald-200'}`}>{webglStatus}</p>
+          </div>
+          <div className="rounded-2xl bg-white/[0.04] p-4">
+            <p className="text-slate-500">Estado render</p>
+            <p className={`mt-1 font-semibold ${renderStatus === 'recalculando' ? 'text-amber-200' : 'text-emerald-200'}`}>{renderStatus}</p>
+          </div>
         </div>
         {!compact ? (
           <div className="rounded-2xl border border-cyan-300/15 bg-cyan-300/10 p-4 text-cyan-50">

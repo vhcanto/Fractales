@@ -1,13 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { EscapeTimeFractalRenderer } from '../lib/fractal/escape-time/EscapeTimeFractalRenderer';
 import { panCamera, screenToComplex, zoomCameraAt, type ComplexPoint } from '../lib/fractal/escape-time/camera/fractalCamera';
-import { tunePresetForZoom, type EscapeTimePreset } from '../lib/fractal/escape-time/presets/escapeTimePresets';
+import { getPreviewIterations, tunePresetForZoom, type EscapeTimePreset } from '../lib/fractal/escape-time/presets/escapeTimePresets';
 
 interface EscapeTimeFractalCanvasProps {
   preset: EscapeTimePreset;
   onPresetChange?: (preset: EscapeTimePreset) => void;
   onComplexPointChange?: (point: ComplexPoint) => void;
   onRendererError?: (error: unknown) => void;
+  onRenderStatusChange?: (status: 'recalculando' | 'estable') => void;
   explorationMode?: boolean;
 }
 
@@ -15,6 +16,7 @@ const MIN_CANVAS_WIDTH = 320;
 const MIN_CANVAS_HEIGHT = 520;
 const WHEEL_ZOOM_STRENGTH = 0.00125;
 const DOUBLE_CLICK_ZOOM = 2.2;
+const REFINEMENT_DEBOUNCE_MS = 320;
 
 const getTechnicalMessage = (error: unknown): string => {
   if (error instanceof Error && error.message.trim()) return error.message;
@@ -27,6 +29,7 @@ export function EscapeTimeFractalCanvas({
   onPresetChange,
   onComplexPointChange,
   onRendererError,
+  onRenderStatusChange,
   explorationMode = false,
 }: EscapeTimeFractalCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -36,11 +39,52 @@ export function EscapeTimeFractalCanvas({
   const onRendererErrorRef = useRef(onRendererError);
   const onPresetChangeRef = useRef(onPresetChange);
   const onComplexPointChangeRef = useRef(onComplexPointChange);
+  const onRenderStatusChangeRef = useRef(onRenderStatusChange);
   const hasFailedRef = useRef(false);
   const dragStartRef = useRef<ComplexPoint | null>(null);
   const dragPresetRef = useRef<EscapeTimePreset | null>(null);
+  const refinementTimerRef = useRef<number | null>(null);
   const [statusMessage, setStatusMessage] = useState('Preparando prueba interna WebGL…');
   const [isDragging, setIsDragging] = useState(false);
+
+  const clearRefinementTimer = useCallback(() => {
+    if (refinementTimerRef.current !== null) {
+      window.clearTimeout(refinementTimerRef.current);
+      refinementTimerRef.current = null;
+    }
+  }, []);
+
+  const publishPreset = useCallback((nextPreset: EscapeTimePreset, progressive = true) => {
+    const finalPreset = tunePresetForZoom(nextPreset);
+
+    if (!progressive) {
+      clearRefinementTimer();
+      latestPresetRef.current = finalPreset;
+      onPresetChangeRef.current?.(finalPreset);
+      setStatusMessage('estable');
+      onRenderStatusChangeRef.current?.('estable');
+      return;
+    }
+
+    clearRefinementTimer();
+    const previewPreset = {
+      ...finalPreset,
+      maxIterations: getPreviewIterations(finalPreset.zoom, finalPreset.fractalType),
+    };
+
+    latestPresetRef.current = previewPreset;
+    onPresetChangeRef.current?.(previewPreset);
+    setStatusMessage('recalculando');
+    onRenderStatusChangeRef.current?.('recalculando');
+
+    refinementTimerRef.current = window.setTimeout(() => {
+      latestPresetRef.current = finalPreset;
+      onPresetChangeRef.current?.(finalPreset);
+      setStatusMessage('estable');
+      onRenderStatusChangeRef.current?.('estable');
+      refinementTimerRef.current = null;
+    }, REFINEMENT_DEBOUNCE_MS);
+  }, [clearRefinementTimer]);
 
   useEffect(() => {
     latestPresetRef.current = preset;
@@ -50,7 +94,8 @@ export function EscapeTimeFractalCanvas({
     onRendererErrorRef.current = onRendererError;
     onPresetChangeRef.current = onPresetChange;
     onComplexPointChangeRef.current = onComplexPointChange;
-  }, [onRendererError, onPresetChange, onComplexPointChange]);
+    onRenderStatusChangeRef.current = onRenderStatusChange;
+  }, [onRendererError, onPresetChange, onComplexPointChange, onRenderStatusChange]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -111,7 +156,8 @@ export function EscapeTimeFractalCanvas({
         }
 
         rendererRef.current.render(latestPresetRef.current);
-        setStatusMessage('Render matemático WebGL activo');
+        setStatusMessage('estable');
+        onRenderStatusChangeRef.current?.('estable');
       } catch (error) {
         failSafely('No fue posible renderizar el fractal matemático WebGL.', error);
       }
@@ -134,8 +180,9 @@ export function EscapeTimeFractalCanvas({
       resizeObserver?.disconnect();
       rendererRef.current?.destroy();
       rendererRef.current = null;
+      clearRefinementTimer();
     };
-  }, [explorationMode]);
+  }, [clearRefinementTimer, explorationMode]);
 
   useEffect(() => {
     const host = containerRef.current;
@@ -173,12 +220,6 @@ export function EscapeTimeFractalCanvas({
       width: rect.width,
       height: rect.height,
     };
-  };
-
-  const publishPreset = (nextPreset: EscapeTimePreset) => {
-    const tunedPreset = tunePresetForZoom(nextPreset);
-    latestPresetRef.current = tunedPreset;
-    onPresetChangeRef.current?.(tunedPreset);
   };
 
   const handlePointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
@@ -228,7 +269,7 @@ export function EscapeTimeFractalCanvas({
 
     canvas.addEventListener('wheel', handleNativeWheel, { passive: false });
     return () => canvas.removeEventListener('wheel', handleNativeWheel);
-  }, []);
+  }, [publishPreset]);
 
   const handleDoubleClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
     const local = getLocalPoint(event);

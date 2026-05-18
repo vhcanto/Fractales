@@ -9,6 +9,8 @@ export interface FractalCameraState {
   initialCenterX: number;
   initialCenterY: number;
   initialZoom: number;
+  minZoom: number;
+  maxZoom: number;
 }
 
 export interface EscapeTimePreset extends FractalCameraState {
@@ -27,11 +29,16 @@ export interface EscapeTimePreset extends FractalCameraState {
   juliaC?: { x: number; y: number };
 }
 
-const withInitialCamera = <T extends Omit<EscapeTimePreset, 'initialCenterX' | 'initialCenterY' | 'initialZoom'>>(preset: T): EscapeTimePreset => ({
+const DEFAULT_MIN_ZOOM = 0.08;
+const DEFAULT_MAX_ZOOM = 100_000_000_000_000;
+
+const withInitialCamera = <T extends Omit<EscapeTimePreset, keyof Pick<FractalCameraState, 'initialCenterX' | 'initialCenterY' | 'initialZoom' | 'minZoom' | 'maxZoom'>> & Partial<Pick<FractalCameraState, 'minZoom' | 'maxZoom'>>>(preset: T): EscapeTimePreset => ({
   ...preset,
   initialCenterX: preset.centerX,
   initialCenterY: preset.centerY,
   initialZoom: preset.zoom,
+  minZoom: preset.minZoom ?? DEFAULT_MIN_ZOOM,
+  maxZoom: preset.maxZoom ?? DEFAULT_MAX_ZOOM,
 });
 
 const basePresetByType: Record<EscapeTimeFractalType, Omit<EscapeTimePreset, keyof FractalCameraState | 'id' | 'name' | 'description'>> = {
@@ -170,19 +177,29 @@ export const fractalTypeLabels: Record<EscapeTimeFractalType, string> = {
 };
 
 export const getDepthLevel = (zoom: number): string => {
-  if (zoom < 8) return 'Vista general';
-  if (zoom < 250) return 'Profundidad media';
-  if (zoom < 8_000) return 'Zoom alto';
-  if (zoom < 300_000) return 'Profundidad extrema';
-  return 'Microdetalle profundo';
+  if (zoom < 8) return 'Nivel 1: vista general';
+  if (zoom < 250) return 'Nivel 2: acercamiento';
+  if (zoom < 8_000) return 'Nivel 3: detalle';
+  if (zoom < 300_000) return 'Nivel 4: profundo';
+  return 'Nivel 5: muy profundo';
 };
 
-export const getDynamicIterations = (zoom: number): number => {
-  if (zoom < 25) return 800;
-  if (zoom < 1_000) return 1200;
-  if (zoom < 80_000) return 1800;
-  if (zoom < 4_000_000) return 2500;
-  return 3000;
+export const getAdaptiveIterations = (zoom: number, fractalType: EscapeTimeFractalType): number => {
+  const safeZoom = Math.max(zoom, 0.0001);
+  const base = safeZoom < 25 ? 800 : safeZoom < 1_000 ? 1300 : safeZoom < 80_000 ? 2200 : safeZoom < 4_000_000 ? 3400 : 4600;
+  const offset = safeZoom < 25
+    ? (fractalType === 'mandelbrot' ? 100 : fractalType === 'julia' ? -50 : -150)
+    : (fractalType === 'mandelbrot' ? 300 : fractalType === 'julia' ? -150 : -350);
+  const adjusted = base + offset;
+  const minimum = fractalType === 'burningShip' ? 600 : 650;
+  const maximum = fractalType === 'mandelbrot' ? 5000 : fractalType === 'julia' ? 4400 : 3800;
+  return Math.min(maximum, Math.max(minimum, adjusted));
+};
+
+export const getPreviewIterations = (zoom: number, fractalType: EscapeTimeFractalType): number => {
+  const finalIterations = getAdaptiveIterations(zoom, fractalType);
+  const floor = fractalType === 'burningShip' ? 360 : 420;
+  return Math.max(floor, Math.round(finalIterations * 0.38));
 };
 
 export const tunePresetForZoom = (preset: EscapeTimePreset): EscapeTimePreset => {
@@ -194,7 +211,7 @@ export const tunePresetForZoom = (preset: EscapeTimePreset): EscapeTimePreset =>
 
   return {
     ...preset,
-    maxIterations: getDynamicIterations(preset.zoom),
+    maxIterations: getAdaptiveIterations(preset.zoom, preset.fractalType),
     contrast,
     gamma,
     brightness,

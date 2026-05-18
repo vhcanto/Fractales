@@ -15,6 +15,12 @@ export const clonePreset = (preset: EscapeTimePreset): EscapeTimePreset => ({
   juliaC: preset.juliaC ? { ...preset.juliaC } : undefined,
 });
 
+const clampZoom = (zoom: number, camera: Pick<FractalCameraState, 'minZoom' | 'maxZoom'>): number => {
+  const minZoom = Number.isFinite(camera.minZoom) ? camera.minZoom : 0.08;
+  const maxZoom = Number.isFinite(camera.maxZoom) ? camera.maxZoom : 100_000_000_000_000;
+  return Math.min(Math.max(zoom, minZoom), maxZoom);
+};
+
 export const resetPresetCamera = (preset: EscapeTimePreset): EscapeTimePreset => ({
   ...clonePreset(preset),
   centerX: preset.initialCenterX,
@@ -54,7 +60,7 @@ export const zoomCameraAt = (
   zoomFactor: number,
 ): EscapeTimePreset => {
   const before = screenToComplex(screenX, screenY, viewport, camera);
-  const nextZoom = Math.min(Math.max(camera.zoom * zoomFactor, 0.08), 1_000_000_000_000);
+  const nextZoom = clampZoom(camera.zoom * zoomFactor, camera);
   const zoomed = { ...camera, zoom: nextZoom };
   const after = screenToComplex(screenX, screenY, viewport, zoomed);
 
