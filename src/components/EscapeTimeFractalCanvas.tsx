@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { EscapeTimeFractalRenderer } from '../lib/fractal/escape-time/EscapeTimeFractalRenderer';
 import { panCamera, screenToComplex, zoomCameraAt, type ComplexPoint } from '../lib/fractal/escape-time/camera/fractalCamera';
-import { getPreviewIterations, tunePresetForZoom, type EscapeTimePreset } from '../lib/fractal/escape-time/presets/escapeTimePresets';
+import { applyRenderStageQuality, RENDER_STAGE_DELAYS, tunePresetForZoom, type EscapeTimePreset, type RenderStage } from '../lib/fractal/escape-time/presets/escapeTimePresets';
 
 interface EscapeTimeFractalCanvasProps {
   preset: EscapeTimePreset;
   onPresetChange?: (preset: EscapeTimePreset) => void;
   onComplexPointChange?: (point: ComplexPoint) => void;
   onRendererError?: (error: unknown) => void;
-  onRenderStatusChange?: (status: 'recalculando' | 'estable') => void;
+  onRenderStatusChange?: (status: RenderStage) => void;
   explorationMode?: boolean;
 }
 
@@ -16,7 +16,6 @@ const MIN_CANVAS_WIDTH = 320;
 const MIN_CANVAS_HEIGHT = 520;
 const WHEEL_ZOOM_STRENGTH = 0.00125;
 const DOUBLE_CLICK_ZOOM = 2.2;
-const REFINEMENT_DEBOUNCE_MS = 320;
 
 const getTechnicalMessage = (error: unknown): string => {
   if (error instanceof Error && error.message.trim()) return error.message;
@@ -43,48 +42,57 @@ export function EscapeTimeFractalCanvas({
   const hasFailedRef = useRef(false);
   const dragStartRef = useRef<ComplexPoint | null>(null);
   const dragPresetRef = useRef<EscapeTimePreset | null>(null);
-  const refinementTimerRef = useRef<number | null>(null);
+  const refineTimerMediumRef = useRef<number | null>(null);
+  const refineTimerFinalRef = useRef<number | null>(null);
   const [statusMessage, setStatusMessage] = useState('Preparando prueba interna WebGL…');
   const [isDragging, setIsDragging] = useState(false);
 
-  const clearRefinementTimer = useCallback(() => {
-    if (refinementTimerRef.current !== null) {
-      window.clearTimeout(refinementTimerRef.current);
-      refinementTimerRef.current = null;
+  const clearRefinementTimers = useCallback(() => {
+    if (refineTimerMediumRef.current !== null) {
+      window.clearTimeout(refineTimerMediumRef.current);
+      refineTimerMediumRef.current = null;
+    }
+    if (refineTimerFinalRef.current !== null) {
+      window.clearTimeout(refineTimerFinalRef.current);
+      refineTimerFinalRef.current = null;
     }
   }, []);
 
-  const publishPreset = useCallback((nextPreset: EscapeTimePreset, progressive = true) => {
-    const finalPreset = tunePresetForZoom(nextPreset);
+  const getCanvasPixelCount = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return 1_000_000;
+    return Math.max(1, canvas.width * canvas.height);
+  }, []);
 
+  const publishStage = useCallback((nextPreset: EscapeTimePreset, stage: RenderStage) => {
+    const stagedPreset = applyRenderStageQuality(nextPreset, stage, getCanvasPixelCount());
+    latestPresetRef.current = stagedPreset;
+    onPresetChangeRef.current?.(stagedPreset);
+    setStatusMessage(stage);
+    onRenderStatusChangeRef.current?.(stage);
+  }, [getCanvasPixelCount]);
+
+  const publishPreset = useCallback((nextPreset: EscapeTimePreset, progressive = true) => {
+    const finalPreset = tunePresetForZoom({ ...nextPreset, renderStage: 'final' });
+
+    clearRefinementTimers();
     if (!progressive) {
-      clearRefinementTimer();
-      latestPresetRef.current = finalPreset;
-      onPresetChangeRef.current?.(finalPreset);
-      setStatusMessage('estable');
-      onRenderStatusChangeRef.current?.('estable');
+      publishStage(finalPreset, 'final');
       return;
     }
 
-    clearRefinementTimer();
-    const previewPreset = {
-      ...finalPreset,
-      maxIterations: getPreviewIterations(finalPreset.zoom, finalPreset.fractalType),
-    };
+    publishStage(finalPreset, 'preview');
 
-    latestPresetRef.current = previewPreset;
-    onPresetChangeRef.current?.(previewPreset);
-    setStatusMessage('recalculando');
-    onRenderStatusChangeRef.current?.('recalculando');
+    refineTimerMediumRef.current = window.setTimeout(() => {
+      publishStage(finalPreset, 'refinando');
+      refineTimerMediumRef.current = null;
+    }, RENDER_STAGE_DELAYS.mediumMs);
 
-    refinementTimerRef.current = window.setTimeout(() => {
-      latestPresetRef.current = finalPreset;
-      onPresetChangeRef.current?.(finalPreset);
-      setStatusMessage('estable');
-      onRenderStatusChangeRef.current?.('estable');
-      refinementTimerRef.current = null;
-    }, REFINEMENT_DEBOUNCE_MS);
-  }, [clearRefinementTimer]);
+    refineTimerFinalRef.current = window.setTimeout(() => {
+      publishStage(finalPreset, 'final');
+      refineTimerFinalRef.current = null;
+    }, RENDER_STAGE_DELAYS.finalMs);
+  }, [clearRefinementTimers, publishStage]);
 
   useEffect(() => {
     latestPresetRef.current = preset;
@@ -156,8 +164,8 @@ export function EscapeTimeFractalCanvas({
         }
 
         rendererRef.current.render(latestPresetRef.current);
-        setStatusMessage('estable');
-        onRenderStatusChangeRef.current?.('estable');
+        setStatusMessage(latestPresetRef.current.renderStage);
+        onRenderStatusChangeRef.current?.(latestPresetRef.current.renderStage);
       } catch (error) {
         failSafely('No fue posible renderizar el fractal matemático WebGL.', error);
       }
@@ -180,9 +188,9 @@ export function EscapeTimeFractalCanvas({
       resizeObserver?.disconnect();
       rendererRef.current?.destroy();
       rendererRef.current = null;
-      clearRefinementTimer();
+      clearRefinementTimers();
     };
-  }, [clearRefinementTimer, explorationMode]);
+  }, [clearRefinementTimers, explorationMode]);
 
   useEffect(() => {
     const host = containerRef.current;

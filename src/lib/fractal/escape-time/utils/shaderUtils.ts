@@ -40,6 +40,7 @@ uniform float u_brightness;
 uniform float u_gamma;
 uniform float u_rotation;
 uniform vec2 u_juliaC;
+uniform int u_samples;
 
 vec2 rotatePoint(vec2 point, float angle) {
   float s = sin(angle);
@@ -85,16 +86,18 @@ vec4 shade(float smoothIteration, float trap, vec2 point) {
   }
 
   float normalized = smoothIteration / max(float(u_maxIterations), 1.0);
-  float depth = pow(clamp(normalized, 0.0, 1.0), 0.48);
+  float logDepth = log(1.0 + smoothIteration) / log(1.0 + max(float(u_maxIterations), 1.0));
+  float depth = pow(clamp(mix(normalized, logDepth, 0.72), 0.0, 1.0), 0.56);
   float filament = exp(-(8.2 - min(zoomDepth, 5.0) * 0.35) * clamp(trap, 0.0, 1.0));
-  float microRings = 0.5 + 0.5 * sin((26.0 + zoomDepth * 2.8) * depth + filament * 4.5 + zoomDepth * 0.17);
-  float bands = smoothstep(0.06, 0.95, fract(depth * (7.0 + zoomDepth * 0.55) + filament * 0.2));
-  vec3 color = samplePalette(depth + microRings * 0.032 + filament * 0.09 + bands * 0.018);
-  color *= 0.68 + 0.72 * filament + 0.08 * bands;
+  float distanceGlow = 1.0 / (1.0 + 24.0 * clamp(trap, 0.0, 2.0));
+  float microRings = 0.5 + 0.5 * sin((18.0 + zoomDepth * 2.2) * depth + filament * 3.4 + zoomDepth * 0.13);
+  float tonalFlow = smoothstep(0.0, 1.0, 0.5 + 0.5 * sin(depth * 9.0 + filament * 1.6));
+  vec3 color = samplePalette(depth + microRings * 0.022 + filament * 0.075 + tonalFlow * 0.014);
+  color *= 0.72 + 0.62 * filament + 0.16 * distanceGlow;
   color = (color - 0.5) * adaptiveContrast + 0.5;
   color *= u_brightness;
   color = pow(max(color, vec3(0.0)), vec3(adaptiveGamma));
-  color += filament * vec3(0.2, 0.22, 0.26) + microRings * 0.018;
+  color += filament * vec3(0.16, 0.18, 0.22) + distanceGlow * vec3(0.08, 0.075, 0.06) + microRings * 0.012;
   return vec4(clamp(color, vec3(0.0), vec3(1.0)), 1.0);
 }
 `;

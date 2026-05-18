@@ -1,5 +1,6 @@
 export type EscapeTimeFractalType = 'mandelbrot' | 'julia' | 'burningShip';
 export type EscapeTimeViewKind = 'full' | 'deep';
+export type RenderStage = 'preview' | 'refinando' | 'final';
 
 export interface FractalCameraState {
   centerX: number;
@@ -27,10 +28,17 @@ export interface EscapeTimePreset extends FractalCameraState {
   brightness: number;
   gamma: number;
   juliaC?: { x: number; y: number };
+  renderStage: RenderStage;
+  samples: number;
 }
 
 const DEFAULT_MIN_ZOOM = 0.08;
 const DEFAULT_MAX_ZOOM = 100_000_000_000_000;
+
+export const RENDER_STAGE_DELAYS = {
+  mediumMs: 190,
+  finalMs: 560,
+} as const;
 
 const withInitialCamera = <T extends Omit<EscapeTimePreset, keyof Pick<FractalCameraState, 'initialCenterX' | 'initialCenterY' | 'initialZoom' | 'minZoom' | 'maxZoom'>> & Partial<Pick<FractalCameraState, 'minZoom' | 'maxZoom'>>>(preset: T): EscapeTimePreset => ({
   ...preset,
@@ -52,6 +60,8 @@ const basePresetByType: Record<EscapeTimeFractalType, Omit<EscapeTimePreset, key
     contrast: 1.12,
     brightness: 1.04,
     gamma: 0.92,
+    renderStage: 'final',
+    samples: 4,
   },
   julia: {
     fractalType: 'julia',
@@ -64,6 +74,8 @@ const basePresetByType: Record<EscapeTimeFractalType, Omit<EscapeTimePreset, key
     brightness: 1.08,
     gamma: 0.9,
     juliaC: { x: -0.7269, y: 0.1889 },
+    renderStage: 'final',
+    samples: 4,
   },
   burningShip: {
     fractalType: 'burningShip',
@@ -75,6 +87,8 @@ const basePresetByType: Record<EscapeTimeFractalType, Omit<EscapeTimePreset, key
     contrast: 1.14,
     brightness: 0.98,
     gamma: 0.94,
+    renderStage: 'final',
+    samples: 4,
   },
 };
 
@@ -186,34 +200,69 @@ export const getDepthLevel = (zoom: number): string => {
 
 export const getAdaptiveIterations = (zoom: number, fractalType: EscapeTimeFractalType): number => {
   const safeZoom = Math.max(zoom, 0.0001);
-  const base = safeZoom < 25 ? 800 : safeZoom < 1_000 ? 1300 : safeZoom < 80_000 ? 2200 : safeZoom < 4_000_000 ? 3400 : 4600;
+  const depth = Math.max(Math.log10(Math.max(safeZoom, 1)), 0);
+  const base = safeZoom < 25 ? 820 : safeZoom < 1_000 ? 1350 : safeZoom < 80_000 ? 2300 : safeZoom < 4_000_000 ? 3500 : 4650;
   const offset = safeZoom < 25
-    ? (fractalType === 'mandelbrot' ? 100 : fractalType === 'julia' ? -50 : -150)
-    : (fractalType === 'mandelbrot' ? 300 : fractalType === 'julia' ? -150 : -350);
-  const adjusted = base + offset;
-  const minimum = fractalType === 'burningShip' ? 600 : 650;
-  const maximum = fractalType === 'mandelbrot' ? 5000 : fractalType === 'julia' ? 4400 : 3800;
+    ? (fractalType === 'mandelbrot' ? 120 : fractalType === 'julia' ? -40 : -130)
+    : (fractalType === 'mandelbrot' ? 320 : fractalType === 'julia' ? -120 : -320);
+  const adjusted = base + offset + Math.round(depth * 42);
+  const minimum = fractalType === 'burningShip' ? 620 : 680;
+  const maximum = fractalType === 'mandelbrot' ? 5000 : fractalType === 'julia' ? 4500 : 3900;
   return Math.min(maximum, Math.max(minimum, adjusted));
 };
 
 export const getPreviewIterations = (zoom: number, fractalType: EscapeTimeFractalType): number => {
   const finalIterations = getAdaptiveIterations(zoom, fractalType);
-  const floor = fractalType === 'burningShip' ? 360 : 420;
-  return Math.max(floor, Math.round(finalIterations * 0.38));
+  const floor = fractalType === 'burningShip' ? 300 : 340;
+  return Math.max(floor, Math.round(finalIterations * 0.3));
+};
+
+export const getMediumIterations = (zoom: number, fractalType: EscapeTimeFractalType): number => {
+  const finalIterations = getAdaptiveIterations(zoom, fractalType);
+  const floor = fractalType === 'burningShip' ? 460 : 520;
+  return Math.max(floor, Math.round(finalIterations * 0.62));
+};
+
+export const getAdaptiveSamples = (stage: RenderStage, pixelCount: number, zoom: number): number => {
+  if (stage === 'preview') return 1;
+
+  const isLargeSurface = pixelCount > 2_600_000;
+  const isVeryLargeSurface = pixelCount > 4_400_000;
+  const isDeepZoom = zoom > 2_000_000;
+
+  if (stage === 'refinando') return isVeryLargeSurface ? 1 : 2;
+  if (isVeryLargeSurface || (isLargeSurface && isDeepZoom)) return 2;
+  if (isLargeSurface) return 3;
+  return 4;
+};
+
+export const applyRenderStageQuality = (preset: EscapeTimePreset, stage: RenderStage, pixelCount = 1_000_000): EscapeTimePreset => {
+  const iterations = stage === 'preview'
+    ? getPreviewIterations(preset.zoom, preset.fractalType)
+    : stage === 'refinando'
+      ? getMediumIterations(preset.zoom, preset.fractalType)
+      : getAdaptiveIterations(preset.zoom, preset.fractalType);
+
+  return {
+    ...preset,
+    maxIterations: iterations,
+    samples: getAdaptiveSamples(stage, pixelCount, preset.zoom),
+    renderStage: stage,
+  };
 };
 
 export const tunePresetForZoom = (preset: EscapeTimePreset): EscapeTimePreset => {
   const depth = Math.max(Math.log10(Math.max(preset.zoom, 1)), 0);
   const visualBase = basePresetByType[preset.fractalType];
-  const contrast = Math.min(1.36, visualBase.contrast + depth * 0.018);
-  const gamma = Math.max(0.72, visualBase.gamma - depth * 0.016);
-  const brightness = Math.min(1.12, visualBase.brightness + depth * 0.008);
-
-  return {
+  const contrast = Math.min(1.42, visualBase.contrast + depth * 0.02);
+  const gamma = Math.max(0.7, visualBase.gamma - depth * 0.017);
+  const brightness = Math.min(1.13, visualBase.brightness + depth * 0.007);
+  const tuned: EscapeTimePreset = {
     ...preset,
-    maxIterations: getAdaptiveIterations(preset.zoom, preset.fractalType),
     contrast,
     gamma,
     brightness,
   };
+
+  return applyRenderStageQuality(tuned, preset.renderStage ?? 'final');
 };

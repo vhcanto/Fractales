@@ -40,9 +40,11 @@ vec4 renderSample(vec2 offset) {
 
 void main() {
   vec4 color = vec4(0.0);
+  int sampleCount = clamp(u_samples, 1, 4);
   for (int i = 0; i < 4; i++) {
-    color += renderSample(aaOffsets(i));
+    if (i >= sampleCount) break;
+    color += renderSample(sampleCount == 1 ? vec2(0.0) : aaOffsets(i));
   }
-  gl_FragColor = color * 0.25;
+  gl_FragColor = color / float(sampleCount);
 }
 `;

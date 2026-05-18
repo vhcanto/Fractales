@@ -3,7 +3,7 @@ import { EscapeTimeFractalCanvas } from '../components/EscapeTimeFractalCanvas';
 import { FractalControls } from '../components/FractalControls';
 import { FractalErrorBoundary } from '../components/FractalErrorBoundary';
 import { ParameterPanel } from '../components/ParameterPanel';
-import { clonePreset, resetPresetCamera, type ComplexPoint } from '../lib/fractal/escape-time/camera/fractalCamera';
+import { clonePreset, resetPresetCamera } from '../lib/fractal/escape-time/camera/fractalCamera';
 import {
   fractalTypeLabels,
   getDepthLevel,
@@ -12,6 +12,7 @@ import {
   type EscapeTimeFractalType,
   type EscapeTimePreset,
   type EscapeTimeViewKind,
+  type RenderStage,
 } from '../lib/fractal/escape-time/presets/escapeTimePresets';
 
 const getErrorMessage = (error: unknown): string => {
@@ -37,11 +38,10 @@ const regeneratePreset = (preset: EscapeTimePreset): EscapeTimePreset => {
 export function FractalLab() {
   const [fractalType, setFractalType] = useState<EscapeTimeFractalType>('mandelbrot');
   const [activePreset, setActivePreset] = useState<EscapeTimePreset>(() => tunePresetForZoom(clonePreset(getEscapeTimePresetByType('mandelbrot'))));
-  const [complexPoint, setComplexPoint] = useState<ComplexPoint | null>(null);
   const [webglError, setWebglError] = useState<string | null>(null);
   const [retryToken, setRetryToken] = useState(0);
   const [isExplorationMode, setIsExplorationMode] = useState(false);
-  const [renderStatus, setRenderStatus] = useState<'recalculando' | 'estable'>('estable');
+  const [renderStatus, setRenderStatus] = useState<RenderStage>('final');
 
   useEffect(() => {
     document.body.classList.toggle('overflow-hidden', isExplorationMode);
@@ -52,10 +52,9 @@ export function FractalLab() {
     const nextPreset = tunePresetForZoom(clonePreset(getEscapeTimePresetByType(nextType, view)));
     setFractalType(nextType);
     setActivePreset(nextPreset);
-    setComplexPoint(null);
     setWebglError(null);
     setRetryToken((current) => current + 1);
-    setRenderStatus('estable');
+    setRenderStatus('final');
   };
 
   const changeFractalType = (nextType: EscapeTimeFractalType) => {
@@ -68,20 +67,18 @@ export function FractalLab() {
 
   const resetView = () => {
     setActivePreset((current) => tunePresetForZoom(resetPresetCamera(current)));
-    setComplexPoint(null);
-    setRenderStatus('estable');
+    setRenderStatus('final');
   };
 
   const regenerateView = () => {
     setActivePreset((current) => regeneratePreset(current));
-    setComplexPoint(null);
-    setRenderStatus('estable');
+    setRenderStatus('final');
   };
 
   const retryWebGL = () => {
     setWebglError(null);
     setRetryToken((current) => current + 1);
-    setRenderStatus('estable');
+    setRenderStatus('final');
   };
 
   const webglErrorCard = (
@@ -118,7 +115,6 @@ export function FractalLab() {
           key={`${retryToken}-${isExplorationMode ? 'explore' : 'lab'}`}
           explorationMode={isExplorationMode}
           preset={activePreset}
-          onComplexPointChange={setComplexPoint}
           onPresetChange={setActivePreset}
           onRendererError={(error) => setWebglError(getErrorMessage(error))}
           onRenderStatusChange={setRenderStatus}
@@ -132,7 +128,7 @@ export function FractalLab() {
       <div className="fixed inset-0 z-50 flex flex-col gap-3 overflow-hidden bg-slate-950 p-3 text-slate-100">
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-white/10 bg-slate-900/90 px-4 py-3 shadow-2xl shadow-slate-950/50">
           <div>
-            <p className="text-xs uppercase tracking-[0.28em] text-cyan-300">Modo exploración · v05-18-10</p>
+            <p className="text-xs uppercase tracking-[0.28em] text-cyan-300">Modo exploración · v05-18-11</p>
             <h2 className="text-lg font-semibold text-white">{fractalTypeLabels[fractalType]} · {getDepthLevel(activePreset.zoom)}</h2>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -153,7 +149,7 @@ export function FractalLab() {
         <div className="grid min-h-0 flex-1 gap-3 xl:grid-cols-[minmax(0,1fr)_300px]">
           <main className="min-h-0">{fractalCanvas}</main>
           <div className="hidden xl:block">
-            <ParameterPanel escapePreset={activePreset} complexPoint={complexPoint} webglStatus={webglError ? 'error' : 'activo'} renderStatus={renderStatus} compact />
+            <ParameterPanel escapePreset={activePreset} webglStatus={webglError ? 'error' : 'activo'} renderStatus={renderStatus} compact />
           </div>
         </div>
       </div>
@@ -176,7 +172,7 @@ export function FractalLab() {
         />
         {fractalCanvas}
       </main>
-      <ParameterPanel escapePreset={activePreset} complexPoint={complexPoint} webglStatus={webglError ? 'error' : 'activo'} renderStatus={renderStatus} />
+      <ParameterPanel escapePreset={activePreset} webglStatus={webglError ? 'error' : 'activo'} renderStatus={renderStatus} />
     </div>
   );
 }
