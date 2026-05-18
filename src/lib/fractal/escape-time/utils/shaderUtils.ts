@@ -79,7 +79,7 @@ vec4 shade(float smoothIteration, float trap, vec2 point) {
     return vec4(vec3(core * u_brightness), 1.0);
   }
 
-  float normalized = smoothIteration / float(max(u_maxIterations, 1));
+  float normalized = smoothIteration / max(float(u_maxIterations), 1.0);
   float depth = pow(clamp(normalized, 0.0, 1.0), 0.52);
   float filament = exp(-9.0 * clamp(trap, 0.0, 1.0));
   float rings = 0.5 + 0.5 * sin(24.0 * depth + filament * 3.5);
@@ -89,7 +89,7 @@ vec4 shade(float smoothIteration, float trap, vec2 point) {
   color *= u_brightness;
   color = pow(max(color, vec3(0.0)), vec3(max(u_gamma, 0.01)));
   color += filament * vec3(0.18, 0.2, 0.24);
-  return vec4(clamp(color, 0.0, 1.0), 1.0);
+  return vec4(clamp(color, vec3(0.0), vec3(1.0)), 1.0);
 }
 `;
 
