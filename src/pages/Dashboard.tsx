@@ -14,7 +14,7 @@ export function Dashboard({ onOpenLab }: DashboardProps) {
           Fractal Lab para explorar firmas visuales homeopáticas.
         </h1>
         <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-300">
-          Prototipo inicial sin base de datos, login ni captura. Los fractales se generan desde arrays locales, un mapeador de parámetros y un motor Canvas 2D modular.
+          Prototipo sin base de datos, login ni captura. La experiencia principal usa shaders WebGL por píxel para fractales Mandelbrot, Julia y Burning Ship de alta densidad visual.
         </p>
         <button
           type="button"
@@ -35,8 +35,8 @@ export function Dashboard({ onOpenLab }: DashboardProps) {
           <p className="mt-1 text-sm text-slate-400">Presets fractales</p>
         </div>
         <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-5">
-          <p className="text-3xl font-bold text-white">Canvas 2D</p>
-          <p className="mt-1 text-sm text-slate-400">Motor visual desacoplado de la UI</p>
+          <p className="text-3xl font-bold text-white">WebGL/GLSL</p>
+          <p className="mt-1 text-sm text-slate-400">Motor matemático escape-time por shader</p>
         </div>
       </section>
     </div>

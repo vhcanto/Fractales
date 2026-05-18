@@ -43,7 +43,7 @@ export class PixiFractalRenderer {
 
   clear(): void {
     const removedChildren = this.app.stage.removeChildren();
-    removedChildren.forEach((child) => child.destroy({ children: true }));
+    removedChildren.forEach((child: Container) => child.destroy({ children: true }));
   }
 
   destroy(): void {

@@ -1,10 +1,18 @@
 import { useMemo, useState } from 'react';
+import { EscapeTimeFractalCanvas } from '../components/EscapeTimeFractalCanvas';
 import { FractalCanvas } from '../components/FractalCanvas';
-import { FractalControls } from '../components/FractalControls';
+import { FractalControls, type FractalRenderMode } from '../components/FractalControls';
 import { FractalPixiCanvas } from '../components/FractalPixiCanvas';
 import { ParameterPanel } from '../components/ParameterPanel';
 import { fractalPresets } from '../data/fractalPresets';
 import { remedies } from '../data/remedies';
+import {
+  escapeTimePresets,
+  getEscapeTimePresetById,
+  getEscapeTimePresetByRemedyId,
+  type EscapeTimePreset,
+} from '../lib/fractal/escape-time/presets/escapeTimePresets';
+import { cloneEscapeTimePreset, jitterPreset } from '../lib/fractal/escape-time/utils/fractalMath';
 import { hasPremiumFractal } from '../lib/fractal/pixi/PixiFractalRenderer';
 import { mapRemedyToVisualParams, pickRandomItem } from '../lib/remedyMapper';
 import type { FractalPreset, FractalRenderInput } from '../types/fractal';
@@ -12,75 +20,120 @@ import type { Remedy } from '../types/remedy';
 
 interface FractalSelection {
   remedy: Remedy;
-  preset: FractalPreset;
+  legacyPreset: FractalPreset;
+  escapePreset: EscapeTimePreset;
 }
 
+const defaultRemedy = remedies.find((remedy) => remedy.id === 'aconitum') ?? (remedies[0] as Remedy);
+const defaultLegacyPreset = fractalPresets.find((preset) => preset.id === 'dendritic-bloom') ?? (fractalPresets[0] as FractalPreset);
+
 const initialSelection: FractalSelection = {
-  remedy: remedies[0] as Remedy,
-  preset: fractalPresets[0] as FractalPreset,
+  remedy: defaultRemedy,
+  legacyPreset: defaultLegacyPreset,
+  escapePreset: cloneEscapeTimePreset(getEscapeTimePresetByRemedyId(defaultRemedy.id)),
 };
 
 export function FractalLab() {
   const [selection, setSelection] = useState<FractalSelection>(initialSelection);
+  const [renderMode, setRenderMode] = useState<FractalRenderMode>('math');
   const [pixiUnavailable, setPixiUnavailable] = useState(false);
 
   const renderInput = useMemo<FractalRenderInput>(() => {
-    const visualParameters = mapRemedyToVisualParams(selection.remedy, selection.preset);
+    const visualParameters = mapRemedyToVisualParams(selection.remedy, selection.legacyPreset);
 
     return {
       remedyName: selection.remedy.name,
-      preset: selection.preset,
+      preset: selection.legacyPreset,
       originalParameters: selection.remedy.parameters,
       visualParameters,
     };
   }, [selection]);
 
-  const isPremiumSelection = hasPremiumFractal(selection.remedy.name);
-  const shouldUsePremiumRenderer = isPremiumSelection && !pixiUnavailable;
-
   const updateRemedy = (remedyId: string) => {
     const remedy = remedies.find((item) => item.id === remedyId);
     if (!remedy) return;
     setPixiUnavailable(false);
-    setSelection((current) => ({ ...current, remedy }));
+    setSelection((current) => ({
+      ...current,
+      remedy,
+      escapePreset: cloneEscapeTimePreset(getEscapeTimePresetByRemedyId(remedy.id)),
+    }));
   };
 
-  const updatePreset = (presetId: string) => {
-    const preset = fractalPresets.find((item) => item.id === presetId);
-    if (!preset) return;
-    setSelection((current) => ({ ...current, preset }));
+  const updateEscapePreset = (presetId: string) => {
+    setSelection((current) => ({
+      ...current,
+      escapePreset: cloneEscapeTimePreset(getEscapeTimePresetById(presetId)),
+    }));
+  };
+
+  const updateIterations = (maxIterations: number) => {
+    setSelection((current) => ({
+      ...current,
+      escapePreset: { ...current.escapePreset, maxIterations },
+    }));
+  };
+
+  const updateZoom = (zoom: number) => {
+    setSelection((current) => ({
+      ...current,
+      escapePreset: { ...current.escapePreset, zoom },
+    }));
+  };
+
+  const resetPreset = () => {
+    setSelection((current) => ({
+      ...current,
+      escapePreset: cloneEscapeTimePreset(getEscapeTimePresetById(current.escapePreset.id)),
+    }));
   };
 
   const generateRandomFractal = () => {
+    const remedy = pickRandomItem(remedies);
+    const escapePreset = jitterPreset(getEscapeTimePresetByRemedyId(remedy.id));
     setPixiUnavailable(false);
     setSelection({
-      remedy: pickRandomItem(remedies),
-      preset: pickRandomItem(fractalPresets),
+      remedy,
+      legacyPreset: pickRandomItem(fractalPresets.filter((preset) => preset.id !== 'neural-spiral') || fractalPresets),
+      escapePreset,
     });
   };
 
+  const isPremiumSelection = hasPremiumFractal(selection.remedy.name);
+  const effectiveRenderMode: FractalRenderMode = renderMode === 'premium' && (!isPremiumSelection || pixiUnavailable) ? 'basic' : renderMode;
+
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
       <main className="space-y-6">
         <FractalControls
+          escapePresetName={selection.escapePreset.name}
+          escapePresets={escapeTimePresets}
+          iterations={selection.escapePreset.maxIterations}
+          maxIterationsLimit={1400}
+          minIterationsLimit={120}
+          onEngineChange={setRenderMode}
           onGenerateRandom={generateRandomFractal}
-          onPresetChange={updatePreset}
+          onIterationsChange={updateIterations}
+          onPresetChange={updateEscapePreset}
           onRemedyChange={updateRemedy}
-          presetName={selection.preset.name}
-          presets={fractalPresets}
+          onResetPreset={resetPreset}
+          onZoomChange={updateZoom}
           remedyName={selection.remedy.name}
           remedies={remedies}
-          renderMode={shouldUsePremiumRenderer ? 'premium' : 'basic'}
-          selectedPresetId={selection.preset.id}
+          renderMode={effectiveRenderMode}
+          selectedEscapePresetId={selection.escapePreset.id}
           selectedRemedyId={selection.remedy.id}
+          zoom={selection.escapePreset.zoom}
         />
-        {shouldUsePremiumRenderer ? (
+        {effectiveRenderMode === 'math' ? (
+          <EscapeTimeFractalCanvas preset={selection.escapePreset} onRendererError={() => setRenderMode('premium')} />
+        ) : effectiveRenderMode === 'premium' ? (
           <FractalPixiCanvas renderInput={renderInput} onRendererError={() => setPixiUnavailable(true)} />
         ) : (
           <FractalCanvas renderInput={renderInput} />
         )}
       </main>
-      <ParameterPanel renderInput={renderInput} />
+      <ParameterPanel escapePreset={selection.escapePreset} renderInput={renderInput} renderMode={effectiveRenderMode} />
     </div>
   );
 }
