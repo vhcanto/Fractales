@@ -38,7 +38,7 @@ export const screenToComplex = (
   const sin = Math.sin(angle);
   const rotatedX = normalizedX * cos - normalizedY * sin;
   const rotatedY = normalizedX * sin + normalizedY * cos;
-  const scale = 3.2 / Math.max(camera.zoom, 0.0001);
+  const scale = 3.2 / Math.max(camera.zoom, 1e-12);
 
   return {
     x: camera.centerX + rotatedX * scale,
@@ -54,7 +54,7 @@ export const zoomCameraAt = (
   zoomFactor: number,
 ): EscapeTimePreset => {
   const before = screenToComplex(screenX, screenY, viewport, camera);
-  const nextZoom = Math.min(Math.max(camera.zoom * zoomFactor, 0.35), 25_000_000);
+  const nextZoom = Math.min(Math.max(camera.zoom * zoomFactor, 0.08), 1_000_000_000_000);
   const zoomed = { ...camera, zoom: nextZoom };
   const after = screenToComplex(screenX, screenY, viewport, zoomed);
 
