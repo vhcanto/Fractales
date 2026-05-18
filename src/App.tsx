@@ -27,7 +27,7 @@ function App() {
           <div className="rounded-3xl bg-gradient-to-br from-cyan-300/20 to-indigo-500/20 p-5">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-cyan-300 font-black text-slate-950">FL</div>
             <h1 className="mt-4 text-2xl font-bold text-white">Fractal Lab</h1>
-            <p className="mt-1 text-sm text-slate-300">SistemaFractales · v05-18-04</p>
+            <p className="mt-1 text-sm text-slate-300">SistemaFractales · v05-18-05</p>
           </div>
 
           <nav className="mt-6 space-y-2" aria-label="Navegación principal">
