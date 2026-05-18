@@ -25,7 +25,7 @@ void main() {
 export const shaderPrelude = `
 precision highp float;
 
-#define MAX_STEPS 3000
+#define MAX_STEPS 5000
 
 varying vec2 v_uv;
 uniform vec2 u_resolution;
