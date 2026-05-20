@@ -134,7 +134,16 @@ export function FractalLab() {
         <EscapeTimeFractalCanvas
           key={`${retryToken}-${isExplorationMode ? 'explore' : 'lab'}`}
           explorationMode={isExplorationMode}
-          preset={qualityCompare === 'stage2' ? { ...activePreset, samples: 1, gamma: 1, contrast: Math.max(1, activePreset.contrast - 0.2), saturation: 0.94 } : activePreset}
+          preset={qualityCompare === 'stage2' ? {
+            ...activePreset,
+            renderStage: 'preview',
+            samples: 1,
+            maxIterations: Math.max(420, Math.round(activePreset.maxIterations * 0.32)),
+            gamma: 1,
+            contrast: 1,
+            brightness: 1,
+            saturation: 0.88,
+          } : activePreset}
           onPresetChange={setActivePreset}
           onRendererError={(error) => setWebglError(getErrorMessage(error))}
           onRenderStatusChange={setRenderStatus}
@@ -184,15 +193,15 @@ export function FractalLab() {
         <div className="rounded-3xl border border-fuchsia-300/30 bg-slate-900/75 p-4">
           <p className="text-xs uppercase tracking-[0.28em] text-cyan-300">SistemaFractales · v05-18-13</p>
           <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
-            {['ETAPA 3 · DEEP FRACTAL ENGINE', 'MULTISAMPLING ACTIVO', 'RENDER PROGRESIVO', 'CALIDAD ULTRA'].map((badge) => (
+            {['ETAPA 3 · DEEP FRACTAL ENGINE', 'WEBGL ACTIVE', 'PROGRESSIVE RENDER', 'MULTISAMPLING ACTIVE'].map((badge) => (
               <span key={badge} className="rounded-full border border-cyan-200/20 bg-cyan-300/10 px-3 py-1 text-cyan-100">{badge}</span>
             ))}
           </div>
           <div className="mt-3 flex items-center gap-3">
             <button type="button" onClick={() => setQualityCompare((c) => c === 'stage3' ? 'stage2' : 'stage3')} className="rounded-xl border border-white/20 px-3 py-2 text-sm text-white">
-              Comparar calidad: {qualityCompare === 'stage3' ? 'Etapa 3' : 'Etapa 2'}
+              Comparar calidad: {qualityCompare === 'stage3' ? 'Modo Etapa 3' : 'Modo Etapa 2'}
             </button>
-            <div className="text-xs text-slate-300">Render: [{'█'.repeat(Math.round(engineStats.progress * 10))}{'░'.repeat(10 - Math.round(engineStats.progress * 10))}] {engineStats.stage} {Math.round(engineStats.progress * 100)}%</div>
+            <div className="text-xs text-slate-300">Render: {engineStats.stage} [{'█'.repeat(Math.round(engineStats.progress * 10))}{'░'.repeat(10 - Math.round(engineStats.progress * 10))}] {Math.round(engineStats.progress * 100)}%</div>
           </div>
         </div>
         <FractalControls

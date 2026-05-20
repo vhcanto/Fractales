@@ -126,51 +126,52 @@ export const escapeTimeViewPresets: EscapeTimePreset[] = [
   withInitialCamera({
     ...basePresetByType.julia,
     id: 'julia-full',
-    name: 'Julia Set: vista completa',
-    description: 'Vista completa del Julia Set para ubicar los lóbulos principales y la simetría global.',
-    centerX: 0,
-    centerY: 0,
-    zoom: 1.28,
-    rotation: 0.18,
+    name: 'Julia Set: encuadre exploratorio',
+    description: 'Encuadre asimétrico para arrancar exploración orgánica sin aspecto ornamental de logo centrado.',
+    centerX: -0.288,
+    centerY: 0.174,
+    zoom: 2.85,
+    rotation: 0.25,
   }),
   withInitialCamera({
     ...basePresetByType.julia,
     id: 'julia-detail',
-    name: 'Julia Set: zona detalle',
-    description: 'Acercamiento a una antena espiralada del Julia Set con contraste suave y filamentos brillantes.',
-    centerX: -0.095,
-    centerY: 0.655,
-    zoom: 165,
-    maxIterations: 1200,
-    colorShift: 0.42,
-    contrast: 1.16,
-    brightness: 1.06,
-    gamma: 0.86,
-    rotation: 0.18,
+    name: 'Julia Set: filamentos profundos',
+    description: 'Región parcial con filamentos, espirales truncadas y textura densa para exploración profunda.',
+    centerX: -0.4124,
+    centerY: 0.5872,
+    zoom: 410,
+    maxIterations: 2200,
+    colorShift: 0.48,
+    contrast: 1.2,
+    brightness: 1.02,
+    gamma: 0.82,
+    rotation: 0.28,
   }),
   withInitialCamera({
     ...basePresetByType.burningShip,
     id: 'burning-ship-full',
-    name: 'Burning Ship: vista general corregida',
-    description: 'Encuadre amplio y corregido del Burning Ship con el casco completo y antenas visibles.',
-    centerX: -0.52,
-    centerY: -0.54,
-    zoom: 1.05,
+    name: 'Burning Ship: composición base',
+    description: 'Composición balanceada con mejor contraste y menos saturación para lectura de estructura.',
+    centerX: -0.63,
+    centerY: -0.46,
+    zoom: 1.62,
     rotation: 0,
   }),
   withInitialCamera({
     ...basePresetByType.burningShip,
     id: 'burning-ship-deep',
     name: 'Burning Ship: zona profunda estética',
-    description: 'Zona profunda estética con arcos dorados, chimeneas y textura fina cerca del valle principal.',
-    centerX: -1.7552,
-    centerY: -0.0318,
-    zoom: 58,
-    maxIterations: 1100,
-    colorShift: 0.08,
-    contrast: 1.16,
-    brightness: 0.98,
-    gamma: 0.92,
+    description: 'Región profunda con mejor composición, aristas complejas y menor saturación plana.',
+    centerX: -1.74434,
+    centerY: -0.01721,
+    zoom: 138,
+    maxIterations: 1800,
+    colorShift: 0.05,
+    contrast: 1.22,
+    brightness: 0.95,
+    saturation: 0.96,
+    gamma: 0.9,
     rotation: 0,
   }),
 ];
@@ -205,26 +206,25 @@ export const getDepthLevel = (zoom: number): string => {
 export const getAdaptiveIterations = (zoom: number, fractalType: EscapeTimeFractalType): number => {
   const safeZoom = Math.max(zoom, 0.0001);
   const depth = Math.max(Math.log10(Math.max(safeZoom, 1)), 0);
-  const base = safeZoom < 10 ? 600 : safeZoom < 100 ? 1200 : safeZoom < 1000 ? 2400 : safeZoom < 10_000 ? 4800 : 5200;
-  const offset = safeZoom < 25
-    ? (fractalType === 'mandelbrot' ? 120 : fractalType === 'julia' ? -40 : -130)
-    : (fractalType === 'mandelbrot' ? 320 : fractalType === 'julia' ? -120 : -320);
-  const adjusted = base + offset + Math.round(depth * 42);
-  const minimum = fractalType === 'burningShip' ? 620 : 680;
-  const maximum = fractalType === 'mandelbrot' ? 5600 : fractalType === 'julia' ? 5200 : 5000;
+  const base = safeZoom < 10 ? 800 : safeZoom < 100 ? 1600 : safeZoom < 1000 ? 3200 : safeZoom < 10_000 ? 6400 : 12000;
+  const typeBias = fractalType === 'mandelbrot' ? 260 : fractalType === 'julia' ? 120 : -180;
+  const deepBoost = safeZoom > 10_000 ? Math.round(depth * 340) : Math.round(depth * 110);
+  const adjusted = base + typeBias + deepBoost;
+  const minimum = fractalType === 'burningShip' ? 780 : 880;
+  const maximum = safeZoom > 3_000_000 ? 16000 : 14000;
   return Math.min(maximum, Math.max(minimum, adjusted));
 };
 
 export const getPreviewIterations = (zoom: number, fractalType: EscapeTimeFractalType): number => {
   const finalIterations = getAdaptiveIterations(zoom, fractalType);
-  const floor = fractalType === 'burningShip' ? 300 : 340;
-  return Math.max(floor, Math.round(finalIterations * 0.3));
+  const floor = fractalType === 'burningShip' ? 320 : 380;
+  return Math.max(floor, Math.round(finalIterations * 0.24));
 };
 
 export const getMediumIterations = (zoom: number, fractalType: EscapeTimeFractalType): number => {
   const finalIterations = getAdaptiveIterations(zoom, fractalType);
-  const floor = fractalType === 'burningShip' ? 460 : 520;
-  return Math.max(floor, Math.round(finalIterations * 0.62));
+  const floor = fractalType === 'burningShip' ? 640 : 760;
+  return Math.max(floor, Math.round(finalIterations * 0.56));
 };
 
 export const getAdaptiveSamples = (stage: RenderStage, pixelCount: number, zoom: number): number => {
