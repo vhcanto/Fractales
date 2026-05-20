@@ -4,6 +4,13 @@ interface ParameterPanelProps {
   webglStatus: 'activo' | 'error';
   renderStatus: RenderStage;
   compact?: boolean;
+  engineStats?: {
+    stage: RenderStage;
+    progress: number;
+    fps: number;
+    renderMs: number;
+    precisionLevel: string;
+  };
 }
 
 const formatNumber = (value: number, digits = 6) => {
@@ -12,7 +19,7 @@ const formatNumber = (value: number, digits = 6) => {
   return value.toFixed(digits);
 };
 
-export function ParameterPanel({ escapePreset, webglStatus, renderStatus, compact = false }: ParameterPanelProps) {
+export function ParameterPanel({ escapePreset, webglStatus, renderStatus, compact = false, engineStats }: ParameterPanelProps) {
   const depthLevel = getDepthLevel(escapePreset.zoom);
 
   return (
@@ -67,6 +74,26 @@ export function ParameterPanel({ escapePreset, webglStatus, renderStatus, compac
           <div className="rounded-2xl bg-white/[0.04] p-4">
             <p className="text-slate-500">Render stage</p>
             <p className={`mt-1 font-semibold ${renderStatus !== 'final' ? 'text-amber-200' : 'text-emerald-200'}`}>{renderStatus}</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-2xl bg-white/[0.04] p-4">
+            <p className="text-slate-500">Gamma / Contraste</p>
+            <p className="mt-1 font-semibold text-cyan-100">{escapePreset.gamma.toFixed(2)} / {escapePreset.contrast.toFixed(2)}</p>
+          </div>
+          <div className="rounded-2xl bg-white/[0.04] p-4">
+            <p className="text-slate-500">Brillo / Saturación</p>
+            <p className="mt-1 font-semibold text-cyan-100">{escapePreset.brightness.toFixed(2)} / {escapePreset.saturation.toFixed(2)}</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-2xl bg-white/[0.04] p-4">
+            <p className="text-slate-500">Render ms / FPS</p>
+            <p className="mt-1 font-semibold text-white">{(engineStats?.renderMs ?? 0).toFixed(2)} / {(engineStats?.fps ?? 0).toFixed(1)}</p>
+          </div>
+          <div className="rounded-2xl bg-white/[0.04] p-4">
+            <p className="text-slate-500">Precision level</p>
+            <p className="mt-1 font-semibold text-fuchsia-100">{engineStats?.precisionLevel ?? 'float-32'}</p>
           </div>
         </div>
       </section>

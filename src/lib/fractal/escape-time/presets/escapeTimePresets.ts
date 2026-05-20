@@ -1,6 +1,6 @@
 export type EscapeTimeFractalType = 'mandelbrot' | 'julia' | 'burningShip';
 export type EscapeTimeViewKind = 'full' | 'deep';
-export type RenderStage = 'preview' | 'refinando' | 'final';
+export type RenderStage = 'preview' | 'refining' | 'final';
 
 export interface FractalCameraState {
   centerX: number;
@@ -26,6 +26,7 @@ export interface EscapeTimePreset extends FractalCameraState {
   colorShift: number;
   contrast: number;
   brightness: number;
+  saturation: number;
   gamma: number;
   juliaC?: { x: number; y: number };
   renderStage: RenderStage;
@@ -36,8 +37,8 @@ const DEFAULT_MIN_ZOOM = 0.08;
 const DEFAULT_MAX_ZOOM = 100_000_000_000_000;
 
 export const RENDER_STAGE_DELAYS = {
-  mediumMs: 190,
-  finalMs: 720,
+  mediumMs: 260,
+  finalMs: 980,
 } as const;
 
 const withInitialCamera = <T extends Omit<EscapeTimePreset, keyof Pick<FractalCameraState, 'initialCenterX' | 'initialCenterY' | 'initialZoom' | 'minZoom' | 'maxZoom'>> & Partial<Pick<FractalCameraState, 'minZoom' | 'maxZoom'>>>(preset: T): EscapeTimePreset => ({
@@ -59,6 +60,7 @@ const basePresetByType: Record<EscapeTimeFractalType, Omit<EscapeTimePreset, key
     colorShift: 0.12,
     contrast: 1.12,
     brightness: 1.04,
+    saturation: 1.08,
     gamma: 0.92,
     renderStage: 'final',
     samples: 4,
@@ -72,6 +74,7 @@ const basePresetByType: Record<EscapeTimeFractalType, Omit<EscapeTimePreset, key
     colorShift: 0.32,
     contrast: 1.08,
     brightness: 1.08,
+    saturation: 1.06,
     gamma: 0.9,
     juliaC: { x: -0.7269, y: 0.1889 },
     renderStage: 'final',
@@ -86,6 +89,7 @@ const basePresetByType: Record<EscapeTimeFractalType, Omit<EscapeTimePreset, key
     colorShift: 0.08,
     contrast: 1.14,
     brightness: 0.98,
+    saturation: 1.03,
     gamma: 0.94,
     renderStage: 'final',
     samples: 4,
@@ -201,13 +205,13 @@ export const getDepthLevel = (zoom: number): string => {
 export const getAdaptiveIterations = (zoom: number, fractalType: EscapeTimeFractalType): number => {
   const safeZoom = Math.max(zoom, 0.0001);
   const depth = Math.max(Math.log10(Math.max(safeZoom, 1)), 0);
-  const base = safeZoom < 25 ? 820 : safeZoom < 1_000 ? 1350 : safeZoom < 80_000 ? 2300 : safeZoom < 4_000_000 ? 3500 : 4650;
+  const base = safeZoom < 10 ? 600 : safeZoom < 100 ? 1200 : safeZoom < 1000 ? 2400 : safeZoom < 10_000 ? 4800 : 5200;
   const offset = safeZoom < 25
     ? (fractalType === 'mandelbrot' ? 120 : fractalType === 'julia' ? -40 : -130)
     : (fractalType === 'mandelbrot' ? 320 : fractalType === 'julia' ? -120 : -320);
   const adjusted = base + offset + Math.round(depth * 42);
   const minimum = fractalType === 'burningShip' ? 620 : 680;
-  const maximum = fractalType === 'mandelbrot' ? 5000 : fractalType === 'julia' ? 4500 : 3900;
+  const maximum = fractalType === 'mandelbrot' ? 5600 : fractalType === 'julia' ? 5200 : 5000;
   return Math.min(maximum, Math.max(minimum, adjusted));
 };
 
@@ -230,7 +234,7 @@ export const getAdaptiveSamples = (stage: RenderStage, pixelCount: number, zoom:
   const isVeryLargeSurface = pixelCount > 4_400_000;
   const isDeepZoom = zoom > 2_000_000;
 
-  if (stage === 'refinando') return isVeryLargeSurface ? 2 : 4;
+  if (stage === 'refining') return isVeryLargeSurface ? 2 : 4;
   if (isVeryLargeSurface || (isLargeSurface && isDeepZoom)) return 4;
   if (isLargeSurface) return 6;
   return 9;
@@ -239,7 +243,7 @@ export const getAdaptiveSamples = (stage: RenderStage, pixelCount: number, zoom:
 export const applyRenderStageQuality = (preset: EscapeTimePreset, stage: RenderStage, pixelCount = 1_000_000): EscapeTimePreset => {
   const iterations = stage === 'preview'
     ? getPreviewIterations(preset.zoom, preset.fractalType)
-    : stage === 'refinando'
+    : stage === 'refining'
       ? getMediumIterations(preset.zoom, preset.fractalType)
       : getAdaptiveIterations(preset.zoom, preset.fractalType);
 
@@ -257,11 +261,13 @@ export const tunePresetForZoom = (preset: EscapeTimePreset): EscapeTimePreset =>
   const contrast = Math.min(1.42, visualBase.contrast + depth * 0.02);
   const gamma = Math.max(0.7, visualBase.gamma - depth * 0.017);
   const brightness = Math.min(1.13, visualBase.brightness + depth * 0.007);
+  const saturation = Math.min(1.22, visualBase.saturation + depth * 0.016);
   const tuned: EscapeTimePreset = {
     ...preset,
     contrast,
     gamma,
     brightness,
+    saturation,
   };
 
   return applyRenderStageQuality(tuned, preset.renderStage ?? 'final');

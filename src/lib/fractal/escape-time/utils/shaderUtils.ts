@@ -39,6 +39,7 @@ uniform vec3 u_palette[8];
 uniform float u_colorShift;
 uniform float u_contrast;
 uniform float u_brightness;
+uniform float u_saturation;
 uniform float u_gamma;
 uniform float u_rotation;
 uniform vec2 u_juliaC;
@@ -102,6 +103,8 @@ vec4 shade(float smoothIteration, float trap, vec2 point) {
   color *= 0.72 + 0.62 * filament + 0.16 * distanceGlow;
   color = (color - 0.5) * adaptiveContrast + 0.5;
   color *= dynamicBrightness;
+  float luma = dot(color, vec3(0.2126, 0.7152, 0.0722));
+  color = mix(vec3(luma), color, u_saturation);
   color = pow(max(color, vec3(0.0)), vec3(max(adaptiveGamma, 0.0001)));
   color += filament * vec3(0.16, 0.18, 0.22) + distanceGlow * vec3(0.08, 0.075, 0.06) + microRings * 0.012;
   color = mix(color, color * vec3(0.88, 0.92, 1.02), fog * 0.18);

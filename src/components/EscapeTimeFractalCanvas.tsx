@@ -9,6 +9,13 @@ interface EscapeTimeFractalCanvasProps {
   onComplexPointChange?: (point: ComplexPoint) => void;
   onRendererError?: (error: unknown) => void;
   onRenderStatusChange?: (status: RenderStage) => void;
+  onEngineStatsChange?: (stats: {
+    stage: RenderStage;
+    progress: number;
+    fps: number;
+    renderMs: number;
+    precisionLevel: string;
+  }) => void;
   explorationMode?: boolean;
   onCanvasReady?: (canvas: HTMLCanvasElement | null) => void;
 }
@@ -30,6 +37,7 @@ export function EscapeTimeFractalCanvas({
   onComplexPointChange,
   onRendererError,
   onRenderStatusChange,
+  onEngineStatsChange,
   explorationMode = false,
   onCanvasReady,
 }: EscapeTimeFractalCanvasProps) {
@@ -41,12 +49,13 @@ export function EscapeTimeFractalCanvas({
   const onPresetChangeRef = useRef(onPresetChange);
   const onComplexPointChangeRef = useRef(onComplexPointChange);
   const onRenderStatusChangeRef = useRef(onRenderStatusChange);
+  const onEngineStatsChangeRef = useRef(onEngineStatsChange);
   const hasFailedRef = useRef(false);
   const dragStartRef = useRef<ComplexPoint | null>(null);
   const dragPresetRef = useRef<EscapeTimePreset | null>(null);
   const refineTimerMediumRef = useRef<number | null>(null);
   const refineTimerFinalRef = useRef<number | null>(null);
-  const [statusMessage, setStatusMessage] = useState('Preparando prueba interna WebGL…');
+  const [statusMessage, setStatusMessage] = useState('ETAPA 3 · DEEP FRACTAL ENGINE');
   const [isDragging, setIsDragging] = useState(false);
 
   const clearRefinementTimers = useCallback(() => {
@@ -86,7 +95,7 @@ export function EscapeTimeFractalCanvas({
     publishStage(finalPreset, 'preview');
 
     refineTimerMediumRef.current = window.setTimeout(() => {
-      publishStage(finalPreset, 'refinando');
+      publishStage(finalPreset, 'refining');
       refineTimerMediumRef.current = null;
     }, RENDER_STAGE_DELAYS.mediumMs);
 
@@ -105,7 +114,8 @@ export function EscapeTimeFractalCanvas({
     onPresetChangeRef.current = onPresetChange;
     onComplexPointChangeRef.current = onComplexPointChange;
     onRenderStatusChangeRef.current = onRenderStatusChange;
-  }, [onRendererError, onPresetChange, onComplexPointChange, onRenderStatusChange]);
+    onEngineStatsChangeRef.current = onEngineStatsChange;
+  }, [onRendererError, onPresetChange, onComplexPointChange, onRenderStatusChange, onEngineStatsChange]);
 
   useEffect(() => {
     onCanvasReady?.(canvasRef.current);
@@ -121,6 +131,8 @@ export function EscapeTimeFractalCanvas({
     let frame = 0;
     let isMounted = true;
     let gradientPassed = false;
+    let rafId = 0;
+    let lastFrameAt = performance.now();
 
     const failSafely = (message: string, error: unknown) => {
       if (hasFailedRef.current) return;
@@ -171,9 +183,25 @@ export function EscapeTimeFractalCanvas({
         }
 
         rendererRef.current.render(latestPresetRef.current);
+        const now = performance.now();
+        const delta = Math.max(1, now - lastFrameAt);
+        const fps = 1000 / delta;
+        lastFrameAt = now;
+        const stage = latestPresetRef.current.renderStage;
+        const progress = stage === 'preview' ? 0.2 : stage === 'refining' ? 0.62 : 1;
+        const zoom = latestPresetRef.current.zoom;
+        const precisionLevel = zoom < 100 ? 'float-32' : zoom < 10000 ? 'float-48' : 'float-64+ emulada';
+        onEngineStatsChangeRef.current?.({
+          stage,
+          progress,
+          fps,
+          renderMs: rendererRef.current.getLastRenderMs(),
+          precisionLevel,
+        });
         const warning = rendererRef.current.getLastTechnicalWarning();
         setStatusMessage(warning ? `${latestPresetRef.current.renderStage} · ${warning}` : latestPresetRef.current.renderStage);
         onRenderStatusChangeRef.current?.(latestPresetRef.current.renderStage);
+        rafId = window.requestAnimationFrame(renderCurrentPreset);
       } catch (error) {
         failSafely('No fue posible renderizar el fractal matemático WebGL.', error);
       }
@@ -193,6 +221,7 @@ export function EscapeTimeFractalCanvas({
     return () => {
       isMounted = false;
       window.cancelAnimationFrame(frame);
+      window.cancelAnimationFrame(rafId);
       resizeObserver?.disconnect();
       rendererRef.current?.destroy();
       rendererRef.current = null;

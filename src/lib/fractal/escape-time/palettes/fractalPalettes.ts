@@ -7,7 +7,7 @@ export interface FractalPalette {
 export const fractalPalettes: FractalPalette[] = [
   {
     id: 'deep-cyan-gold',
-    name: 'Azul profundo · cyan · oro',
+    name: 'Deep Space Blue',
     colors: [
       [0.003, 0.006, 0.018],
       [0.01, 0.027, 0.082],
@@ -21,7 +21,7 @@ export const fractalPalettes: FractalPalette[] = [
   },
   {
     id: 'violet-rose-white',
-    name: 'Violeta · lila · rosa · blanco',
+    name: 'Quantum Violet',
     colors: [
       [0.008, 0.005, 0.032],
       [0.045, 0.02, 0.14],
@@ -35,7 +35,7 @@ export const fractalPalettes: FractalPalette[] = [
   },
   {
     id: 'ember-gold-dark',
-    name: 'Brasa oscura · naranja · dorado',
+    name: 'Nebula Gold',
     colors: [
       [0.012, 0.007, 0.005],
       [0.048, 0.022, 0.012],
