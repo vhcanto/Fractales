@@ -8,6 +8,7 @@ interface FractalControlsProps {
   onRegenerateView: () => void;
   onResetView: () => void;
   onEnterExploration: () => void;
+  onExportPng: () => void;
   showRetryWebGL?: boolean;
   onRetryWebGL: () => void;
 }
@@ -22,6 +23,7 @@ export function FractalControls({
   onRegenerateView,
   onResetView,
   onEnterExploration,
+  onExportPng,
   onRetryWebGL,
   showRetryWebGL = false,
 }: FractalControlsProps) {
@@ -54,6 +56,13 @@ export function FractalControls({
             className="rounded-2xl bg-emerald-300 px-5 py-3 font-semibold text-slate-950 transition hover:-translate-y-0.5 hover:bg-emerald-200 hover:shadow-lg hover:shadow-emerald-500/25 focus:outline-none focus:ring-2 focus:ring-emerald-100 focus:ring-offset-2 focus:ring-offset-slate-950"
           >
             Modo exploración
+          </button>
+          <button
+            type="button"
+            onClick={onExportPng}
+            className="rounded-2xl border border-amber-300/40 px-5 py-3 font-semibold text-amber-100 transition hover:-translate-y-0.5 hover:bg-amber-300/10 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:ring-offset-2 focus:ring-offset-slate-950"
+          >
+            Exportar PNG
           </button>
           <button
             type="button"

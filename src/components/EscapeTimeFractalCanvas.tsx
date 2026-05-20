@@ -10,6 +10,7 @@ interface EscapeTimeFractalCanvasProps {
   onRendererError?: (error: unknown) => void;
   onRenderStatusChange?: (status: RenderStage) => void;
   explorationMode?: boolean;
+  onCanvasReady?: (canvas: HTMLCanvasElement | null) => void;
 }
 
 const MIN_CANVAS_WIDTH = 320;
@@ -30,6 +31,7 @@ export function EscapeTimeFractalCanvas({
   onRendererError,
   onRenderStatusChange,
   explorationMode = false,
+  onCanvasReady,
 }: EscapeTimeFractalCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -104,6 +106,11 @@ export function EscapeTimeFractalCanvas({
     onComplexPointChangeRef.current = onComplexPointChange;
     onRenderStatusChangeRef.current = onRenderStatusChange;
   }, [onRendererError, onPresetChange, onComplexPointChange, onRenderStatusChange]);
+
+  useEffect(() => {
+    onCanvasReady?.(canvasRef.current);
+    return () => onCanvasReady?.(null);
+  }, [onCanvasReady]);
 
   useEffect(() => {
     const canvas = canvasRef.current;

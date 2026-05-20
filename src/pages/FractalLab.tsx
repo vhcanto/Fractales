@@ -36,6 +36,7 @@ const regeneratePreset = (preset: EscapeTimePreset): EscapeTimePreset => {
 };
 
 export function FractalLab() {
+  const [renderCanvas, setRenderCanvas] = useState<HTMLCanvasElement | null>(null);
   const [fractalType, setFractalType] = useState<EscapeTimeFractalType>('mandelbrot');
   const [activePreset, setActivePreset] = useState<EscapeTimePreset>(() => tunePresetForZoom(clonePreset(getEscapeTimePresetByType('mandelbrot'))));
   const [webglError, setWebglError] = useState<string | null>(null);
@@ -81,6 +82,23 @@ export function FractalLab() {
     setRenderStatus('final');
   };
 
+  const exportPng = () => {
+    if (!renderCanvas) return;
+    const upscale = 2;
+    const exportCanvas = document.createElement('canvas');
+    exportCanvas.width = Math.max(1, Math.floor(renderCanvas.width * upscale));
+    exportCanvas.height = Math.max(1, Math.floor(renderCanvas.height * upscale));
+    const context = exportCanvas.getContext('2d');
+    if (!context) return;
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = 'high';
+    context.drawImage(renderCanvas, 0, 0, exportCanvas.width, exportCanvas.height);
+    const link = document.createElement('a');
+    link.download = `${fractalType}-${new Date().toISOString().replaceAll(':', '-').slice(0, 19)}.png`;
+    link.href = exportCanvas.toDataURL('image/png');
+    link.click();
+  };
+
   const webglErrorCard = (
     <div className="flex min-h-[520px] items-center justify-center rounded-3xl border border-rose-300/30 bg-rose-950/30 p-6 text-rose-100 shadow-2xl shadow-rose-950/20">
       <div className="max-w-2xl text-center">
@@ -118,6 +136,7 @@ export function FractalLab() {
           onPresetChange={setActivePreset}
           onRendererError={(error) => setWebglError(getErrorMessage(error))}
           onRenderStatusChange={setRenderStatus}
+          onCanvasReady={setRenderCanvas}
         />
       )}
     </FractalErrorBoundary>
@@ -164,6 +183,7 @@ export function FractalLab() {
           onEnterExploration={() => setIsExplorationMode(true)}
           onFractalTypeChange={changeFractalType}
           onFullView={setFullView}
+          onExportPng={exportPng}
           onRegenerateView={regenerateView}
           onResetView={resetView}
           onRetryWebGL={retryWebGL}

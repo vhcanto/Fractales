@@ -184,7 +184,7 @@ export class EscapeTimeFractalRenderer {
     this.setUniform1f(bundle.uniforms.gamma, preset.gamma);
     this.setUniform1f(bundle.uniforms.rotation, preset.rotation ?? 0);
     this.setUniform2f(bundle.uniforms.juliaC, preset.juliaC?.x ?? -0.7269, preset.juliaC?.y ?? 0.1889);
-    this.setUniform1i(bundle.uniforms.samples, Math.min(Math.max(Math.round(preset.samples ?? 1), 1), 4));
+    this.setUniform1i(bundle.uniforms.samples, Math.min(Math.max(Math.round(preset.samples ?? 1), 1), 9));
 
     gl.clear(gl.COLOR_BUFFER_BIT);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
