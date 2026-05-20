@@ -19,6 +19,7 @@ interface ProgramBundle {
     colorShift: WebGLUniformLocation | null;
     contrast: WebGLUniformLocation | null;
     brightness: WebGLUniformLocation | null;
+    saturation: WebGLUniformLocation | null;
     gamma: WebGLUniformLocation | null;
     rotation: WebGLUniformLocation | null;
     juliaC: WebGLUniformLocation | null;
@@ -103,6 +104,7 @@ export class EscapeTimeFractalRenderer {
   private gradientProgram: WebGLProgram | null = null;
   private vertexBuffer: WebGLBuffer | null = null;
   private lastTechnicalWarning: string | null = null;
+  private lastRenderMs = 0;
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     if (!canvas || !(canvas instanceof HTMLCanvasElement)) {
@@ -162,7 +164,12 @@ export class EscapeTimeFractalRenderer {
     return this.lastTechnicalWarning;
   }
 
+  getLastRenderMs() {
+    return this.lastRenderMs;
+  }
+
   render(preset: EscapeTimePreset) {
+    const startedAt = performance.now();
     const gl = this.gl;
     const bundle = this.getProgram(preset.fractalType);
     const palette = getFractalPalette(preset.colorPalette);
@@ -181,6 +188,7 @@ export class EscapeTimeFractalRenderer {
     this.setUniform1f(bundle.uniforms.colorShift, preset.colorShift);
     this.setUniform1f(bundle.uniforms.contrast, preset.contrast);
     this.setUniform1f(bundle.uniforms.brightness, preset.brightness);
+    this.setUniform1f(bundle.uniforms.saturation, preset.saturation);
     this.setUniform1f(bundle.uniforms.gamma, preset.gamma);
     this.setUniform1f(bundle.uniforms.rotation, preset.rotation ?? 0);
     this.setUniform2f(bundle.uniforms.juliaC, preset.juliaC?.x ?? -0.7269, preset.juliaC?.y ?? 0.1889);
@@ -189,6 +197,7 @@ export class EscapeTimeFractalRenderer {
     gl.clear(gl.COLOR_BUFFER_BIT);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     this.assertNoGlError(`render ${preset.fractalType}`);
+    this.lastRenderMs = performance.now() - startedAt;
   }
 
   destroy() {
@@ -283,6 +292,7 @@ export class EscapeTimeFractalRenderer {
       colorShift: this.gl.getUniformLocation(program, 'u_colorShift'),
       contrast: this.gl.getUniformLocation(program, 'u_contrast'),
       brightness: this.gl.getUniformLocation(program, 'u_brightness'),
+      saturation: this.gl.getUniformLocation(program, 'u_saturation'),
       gamma: this.gl.getUniformLocation(program, 'u_gamma'),
       rotation: this.gl.getUniformLocation(program, 'u_rotation'),
       juliaC: this.gl.getUniformLocation(program, 'u_juliaC'),

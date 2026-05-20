@@ -43,6 +43,8 @@ export function FractalLab() {
   const [retryToken, setRetryToken] = useState(0);
   const [isExplorationMode, setIsExplorationMode] = useState(false);
   const [renderStatus, setRenderStatus] = useState<RenderStage>('final');
+  const [qualityCompare, setQualityCompare] = useState<'stage2' | 'stage3'>('stage3');
+  const [engineStats, setEngineStats] = useState({ stage: 'final' as RenderStage, progress: 1, fps: 0, renderMs: 0, precisionLevel: 'float-32' });
 
   useEffect(() => {
     document.body.classList.toggle('overflow-hidden', isExplorationMode);
@@ -132,10 +134,11 @@ export function FractalLab() {
         <EscapeTimeFractalCanvas
           key={`${retryToken}-${isExplorationMode ? 'explore' : 'lab'}`}
           explorationMode={isExplorationMode}
-          preset={activePreset}
+          preset={qualityCompare === 'stage2' ? { ...activePreset, samples: 1, gamma: 1, contrast: Math.max(1, activePreset.contrast - 0.2), saturation: 0.94 } : activePreset}
           onPresetChange={setActivePreset}
           onRendererError={(error) => setWebglError(getErrorMessage(error))}
           onRenderStatusChange={setRenderStatus}
+          onEngineStatsChange={setEngineStats}
           onCanvasReady={setRenderCanvas}
         />
       )}
@@ -147,7 +150,7 @@ export function FractalLab() {
       <div className="fixed inset-0 z-50 flex flex-col gap-3 overflow-hidden bg-slate-950 p-3 text-slate-100">
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-white/10 bg-slate-900/90 px-4 py-3 shadow-2xl shadow-slate-950/50">
           <div>
-            <p className="text-xs uppercase tracking-[0.28em] text-cyan-300">Modo exploración · v05-18-12</p>
+            <p className="text-xs uppercase tracking-[0.28em] text-cyan-300">Modo exploración · v05-18-13</p>
             <h2 className="text-lg font-semibold text-white">{fractalTypeLabels[fractalType]} · {getDepthLevel(activePreset.zoom)}</h2>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -168,7 +171,7 @@ export function FractalLab() {
         <div className="grid min-h-0 flex-1 gap-3 xl:grid-cols-[minmax(0,1fr)_300px]">
           <main className="min-h-0">{fractalCanvas}</main>
           <div className="hidden xl:block">
-            <ParameterPanel escapePreset={activePreset} webglStatus={webglError ? 'error' : 'activo'} renderStatus={renderStatus} compact />
+            <ParameterPanel escapePreset={activePreset} webglStatus={webglError ? 'error' : 'activo'} renderStatus={renderStatus} engineStats={engineStats} compact />
           </div>
         </div>
       </div>
@@ -178,6 +181,20 @@ export function FractalLab() {
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
       <main className="space-y-6">
+        <div className="rounded-3xl border border-fuchsia-300/30 bg-slate-900/75 p-4">
+          <p className="text-xs uppercase tracking-[0.28em] text-cyan-300">SistemaFractales · v05-18-13</p>
+          <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
+            {['ETAPA 3 · DEEP FRACTAL ENGINE', 'MULTISAMPLING ACTIVO', 'RENDER PROGRESIVO', 'CALIDAD ULTRA'].map((badge) => (
+              <span key={badge} className="rounded-full border border-cyan-200/20 bg-cyan-300/10 px-3 py-1 text-cyan-100">{badge}</span>
+            ))}
+          </div>
+          <div className="mt-3 flex items-center gap-3">
+            <button type="button" onClick={() => setQualityCompare((c) => c === 'stage3' ? 'stage2' : 'stage3')} className="rounded-xl border border-white/20 px-3 py-2 text-sm text-white">
+              Comparar calidad: {qualityCompare === 'stage3' ? 'Etapa 3' : 'Etapa 2'}
+            </button>
+            <div className="text-xs text-slate-300">Render: [{'█'.repeat(Math.round(engineStats.progress * 10))}{'░'.repeat(10 - Math.round(engineStats.progress * 10))}] {engineStats.stage} {Math.round(engineStats.progress * 100)}%</div>
+          </div>
+        </div>
         <FractalControls
           onDeepView={setDeepView}
           onEnterExploration={() => setIsExplorationMode(true)}
@@ -192,7 +209,7 @@ export function FractalLab() {
         />
         {fractalCanvas}
       </main>
-      <ParameterPanel escapePreset={activePreset} webglStatus={webglError ? 'error' : 'activo'} renderStatus={renderStatus} />
+      <ParameterPanel escapePreset={activePreset} webglStatus={webglError ? 'error' : 'activo'} renderStatus={renderStatus} engineStats={engineStats} />
     </div>
   );
 }
