@@ -24,6 +24,7 @@ const MIN_CANVAS_WIDTH = 320;
 const MIN_CANVAS_HEIGHT = 520;
 const WHEEL_ZOOM_STRENGTH = 0.00125;
 const DOUBLE_CLICK_ZOOM = 2.2;
+const NAV_DAMPING = 0.24;
 
 const getTechnicalMessage = (error: unknown): string => {
   if (error instanceof Error && error.message.trim()) return error.message;
@@ -57,6 +58,8 @@ export function EscapeTimeFractalCanvas({
   const refineTimerFinalRef = useRef<number | null>(null);
   const [statusMessage, setStatusMessage] = useState('ETAPA 3 · DEEP FRACTAL ENGINE');
   const [isDragging, setIsDragging] = useState(false);
+  const targetPresetRef = useRef<EscapeTimePreset>(preset);
+  const wheelAccumulatorRef = useRef(0);
 
   const clearRefinementTimers = useCallback(() => {
     if (refineTimerMediumRef.current !== null) {
@@ -107,7 +110,19 @@ export function EscapeTimeFractalCanvas({
 
   useEffect(() => {
     latestPresetRef.current = preset;
+    targetPresetRef.current = preset;
   }, [preset, explorationMode]);
+
+  const smoothPresetTransition = useCallback((nextPreset: EscapeTimePreset, progressive = true) => {
+    const current = latestPresetRef.current;
+    const smoothed: EscapeTimePreset = {
+      ...nextPreset,
+      centerX: current.centerX + (nextPreset.centerX - current.centerX) * NAV_DAMPING,
+      centerY: current.centerY + (nextPreset.centerY - current.centerY) * NAV_DAMPING,
+      zoom: current.zoom + (nextPreset.zoom - current.zoom) * NAV_DAMPING,
+    };
+    publishPreset(smoothed, progressive);
+  }, [publishPreset]);
 
   useEffect(() => {
     onRendererErrorRef.current = onRendererError;
@@ -278,7 +293,8 @@ export function EscapeTimeFractalCanvas({
 
     if (!dragStartRef.current || !dragPresetRef.current) return;
     const nextPreset = panCamera(dragPresetRef.current, dragStartRef.current, { x: local.x, y: local.y }, viewport);
-    publishPreset(nextPreset);
+    targetPresetRef.current = nextPreset;
+    smoothPresetTransition(nextPreset);
   };
 
   const handlePointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
@@ -310,8 +326,11 @@ export function EscapeTimeFractalCanvas({
         width: rect.width,
         height: rect.height,
       };
-      const zoomFactor = Math.exp(-event.deltaY * WHEEL_ZOOM_STRENGTH);
-      publishPreset(zoomCameraAt(latestPresetRef.current, local.x, local.y, { width: local.width, height: local.height }, zoomFactor));
+      wheelAccumulatorRef.current = wheelAccumulatorRef.current * 0.7 + event.deltaY * 0.3;
+      const zoomFactor = Math.exp(-wheelAccumulatorRef.current * WHEEL_ZOOM_STRENGTH);
+      const target = zoomCameraAt(targetPresetRef.current, local.x, local.y, { width: local.width, height: local.height }, zoomFactor);
+      targetPresetRef.current = target;
+      smoothPresetTransition(target);
     };
 
     canvas.addEventListener('wheel', handleNativeWheel, { passive: false });
@@ -321,7 +340,9 @@ export function EscapeTimeFractalCanvas({
   const handleDoubleClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
     const local = getLocalPoint(event);
     if (!local) return;
-    publishPreset(zoomCameraAt(latestPresetRef.current, local.x, local.y, { width: local.width, height: local.height }, DOUBLE_CLICK_ZOOM));
+    const target = zoomCameraAt(targetPresetRef.current, local.x, local.y, { width: local.width, height: local.height }, DOUBLE_CLICK_ZOOM);
+    targetPresetRef.current = target;
+    smoothPresetTransition(target);
   };
 
   return (
