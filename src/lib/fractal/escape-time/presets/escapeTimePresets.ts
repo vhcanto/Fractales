@@ -37,7 +37,7 @@ const DEFAULT_MAX_ZOOM = 100_000_000_000_000;
 
 export const RENDER_STAGE_DELAYS = {
   mediumMs: 190,
-  finalMs: 560,
+  finalMs: 720,
 } as const;
 
 const withInitialCamera = <T extends Omit<EscapeTimePreset, keyof Pick<FractalCameraState, 'initialCenterX' | 'initialCenterY' | 'initialZoom' | 'minZoom' | 'maxZoom'>> & Partial<Pick<FractalCameraState, 'minZoom' | 'maxZoom'>>>(preset: T): EscapeTimePreset => ({
@@ -230,10 +230,10 @@ export const getAdaptiveSamples = (stage: RenderStage, pixelCount: number, zoom:
   const isVeryLargeSurface = pixelCount > 4_400_000;
   const isDeepZoom = zoom > 2_000_000;
 
-  if (stage === 'refinando') return isVeryLargeSurface ? 1 : 2;
-  if (isVeryLargeSurface || (isLargeSurface && isDeepZoom)) return 2;
-  if (isLargeSurface) return 3;
-  return 4;
+  if (stage === 'refinando') return isVeryLargeSurface ? 2 : 4;
+  if (isVeryLargeSurface || (isLargeSurface && isDeepZoom)) return 4;
+  if (isLargeSurface) return 6;
+  return 9;
 };
 
 export const applyRenderStageQuality = (preset: EscapeTimePreset, stage: RenderStage, pixelCount = 1_000_000): EscapeTimePreset => {

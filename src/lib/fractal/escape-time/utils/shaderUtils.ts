@@ -27,7 +27,7 @@ precision highp float;
 precision highp int;
 
 const int MAX_ITERATIONS = 5000;
-const int MAX_SAMPLES = 4;
+const int MAX_SAMPLES = 9;
 
 varying vec2 v_uv;
 uniform vec2 u_resolution;
@@ -78,8 +78,9 @@ vec3 samplePalette(float t) {
 
 vec4 shade(float smoothIteration, float trap, vec2 point) {
   float zoomDepth = clamp(log(max(u_zoom, 1.0)) / log(10.0), 0.0, 10.0);
-  float adaptiveContrast = u_contrast + zoomDepth * 0.018;
-  float adaptiveGamma = max(u_gamma - zoomDepth * 0.01, 0.68);
+  float adaptiveContrast = u_contrast + zoomDepth * 0.022;
+  float adaptiveGamma = max(u_gamma - zoomDepth * 0.012, 0.64);
+  float dynamicBrightness = u_brightness + zoomDepth * 0.008;
 
   if (smoothIteration < 0.0) {
     float innerGrain = 0.5 + 0.5 * sin((point.x + point.y) * (18.0 + zoomDepth * 7.0));
@@ -90,17 +91,20 @@ vec4 shade(float smoothIteration, float trap, vec2 point) {
   float iterationLimit = max(float(u_maxIterations), 1.0);
   float normalized = smoothIteration / iterationLimit;
   float logDepth = log(1.0 + smoothIteration) / log(1.0 + iterationLimit);
-  float depth = pow(clamp(mix(normalized, logDepth, 0.72), 0.0, 1.0), 0.56);
+  float depth = pow(clamp(mix(normalized, logDepth, 0.8), 0.0, 1.0), 0.52);
   float filament = exp(-(8.2 - min(zoomDepth, 5.0) * 0.35) * clamp(trap, 0.0, 1.0));
   float distanceGlow = 1.0 / (1.0 + 24.0 * clamp(trap, 0.0, 2.0));
+  float fog = 1.0 - exp(-3.4 * depth);
   float microRings = 0.5 + 0.5 * sin((18.0 + zoomDepth * 2.2) * depth + filament * 3.4 + zoomDepth * 0.13);
   float tonalFlow = smoothstep(0.0, 1.0, 0.5 + 0.5 * sin(depth * 9.0 + filament * 1.6));
-  vec3 color = samplePalette(depth + microRings * 0.022 + filament * 0.075 + tonalFlow * 0.014);
+  float dither = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453);
+  vec3 color = samplePalette(depth + microRings * 0.022 + filament * 0.075 + tonalFlow * 0.014 + (dither - 0.5) * 0.006);
   color *= 0.72 + 0.62 * filament + 0.16 * distanceGlow;
   color = (color - 0.5) * adaptiveContrast + 0.5;
-  color *= u_brightness;
+  color *= dynamicBrightness;
   color = pow(max(color, vec3(0.0)), vec3(max(adaptiveGamma, 0.0001)));
   color += filament * vec3(0.16, 0.18, 0.22) + distanceGlow * vec3(0.08, 0.075, 0.06) + microRings * 0.012;
+  color = mix(color, color * vec3(0.88, 0.92, 1.02), fog * 0.18);
   return vec4(clamp(color, vec3(0.0), vec3(1.0)), 1.0);
 }
 `;

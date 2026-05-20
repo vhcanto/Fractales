@@ -9,8 +9,13 @@ vec2 burningShipStep(vec2 z, vec2 c) {
 
 vec2 aaOffsets(int sampleIndex) {
   if (sampleIndex == 0) return vec2(-0.3, -0.3);
-  if (sampleIndex == 1) return vec2(0.3, -0.3);
-  if (sampleIndex == 2) return vec2(-0.3, 0.3);
+  if (sampleIndex == 1) return vec2(0.0, -0.33);
+  if (sampleIndex == 2) return vec2(0.3, -0.3);
+  if (sampleIndex == 3) return vec2(-0.33, 0.0);
+  if (sampleIndex == 4) return vec2(0.0, 0.0);
+  if (sampleIndex == 5) return vec2(0.33, 0.0);
+  if (sampleIndex == 6) return vec2(-0.3, 0.3);
+  if (sampleIndex == 7) return vec2(0.0, 0.33);
   return vec2(0.3, 0.3);
 }
 

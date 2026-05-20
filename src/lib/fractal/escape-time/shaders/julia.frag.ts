@@ -10,7 +10,12 @@ vec2 aaOffsets(int sampleIndex) {
   if (sampleIndex == 0) return vec2(-0.35, -0.1);
   if (sampleIndex == 1) return vec2(0.12, -0.36);
   if (sampleIndex == 2) return vec2(-0.12, 0.36);
-  return vec2(0.35, 0.1);
+  if (sampleIndex == 3) return vec2(0.35, 0.1);
+  if (sampleIndex == 4) return vec2(-0.24, -0.3);
+  if (sampleIndex == 5) return vec2(0.3, -0.24);
+  if (sampleIndex == 6) return vec2(-0.3, 0.24);
+  if (sampleIndex == 7) return vec2(0.24, 0.3);
+  return vec2(0.0, 0.0);
 }
 
 vec4 renderSample(vec2 offset) {
