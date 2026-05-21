@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import type { DeepZoomDisplayState } from '../lib/fractal/deep-zoom/DeepZoomCamera';
 import { EscapeTimeFractalCanvas } from '../components/EscapeTimeFractalCanvas';
 import { FractalControls } from '../components/FractalControls';
 import { FractalErrorBoundary } from '../components/FractalErrorBoundary';
@@ -45,6 +46,7 @@ export function FractalLab() {
   const [renderStatus, setRenderStatus] = useState<RenderStage>('final');
   const [qualityCompare, setQualityCompare] = useState<'stage2' | 'stage3'>('stage3');
   const [engineStats, setEngineStats] = useState({ stage: 'final' as RenderStage, progress: 1, fps: 0, renderMs: 0, precisionLevel: 'float-32' });
+  const [deepZoomState, setDeepZoomState] = useState<DeepZoomDisplayState | null>(null);
 
   useEffect(() => {
     document.body.classList.toggle('overflow-hidden', isExplorationMode);
@@ -149,6 +151,7 @@ export function FractalLab() {
           onRenderStatusChange={setRenderStatus}
           onEngineStatsChange={setEngineStats}
           onCanvasReady={setRenderCanvas}
+          onDeepZoomStateChange={setDeepZoomState}
         />
       )}
     </FractalErrorBoundary>
@@ -159,7 +162,7 @@ export function FractalLab() {
       <div className="fixed inset-0 z-50 flex flex-col gap-3 overflow-hidden bg-slate-950 p-3 text-slate-100">
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-white/10 bg-slate-900/90 px-4 py-3 shadow-2xl shadow-slate-950/50">
           <div>
-            <p className="text-xs uppercase tracking-[0.28em] text-cyan-300">Modo exploración · v05-20-03</p>
+            <p className="text-xs uppercase tracking-[0.28em] text-cyan-300">Modo exploración · v05-20-04</p>
             <h2 className="text-lg font-semibold text-white">{fractalTypeLabels[fractalType]} · {getDepthLevel(activePreset.zoom)}</h2>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -180,7 +183,7 @@ export function FractalLab() {
         <div className="grid min-h-0 flex-1 gap-3 xl:grid-cols-[minmax(0,1fr)_300px]">
           <main className="min-h-0">{fractalCanvas}</main>
           <div className="hidden xl:block">
-            <ParameterPanel escapePreset={activePreset} webglStatus={webglError ? 'error' : 'activo'} renderStatus={renderStatus} engineStats={engineStats} compact />
+            <ParameterPanel escapePreset={activePreset} webglStatus={webglError ? 'error' : 'activo'} renderStatus={renderStatus} engineStats={engineStats} compact deepZoomState={deepZoomState} />
           </div>
         </div>
       </div>
@@ -191,13 +194,13 @@ export function FractalLab() {
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
       <main className="space-y-6">
         <div className="rounded-3xl border border-fuchsia-300/30 bg-slate-900/75 p-4">
-          <p className="text-xs uppercase tracking-[0.28em] text-cyan-300">SistemaFractales · v05-20-03</p>
+          <p className="text-xs uppercase tracking-[0.28em] text-cyan-300">SistemaFractales · v05-20-04</p>
           <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
-            {['ETAPA 3 ESTABLE', 'WEBGL ACTIVE', 'PROGRESSIVE RENDER', 'MULTISAMPLING ACTIVE', 'BASE READY FOR DEEP ZOOM'].map((badge) => (
+            {['ETAPA 4A · DEEP ZOOM MATHEMATICS', 'WEBGL ACTIVE', 'PROGRESSIVE RENDER', 'MULTISAMPLING ACTIVE', 'BASE READY FOR DEEP ZOOM'].map((badge) => (
               <span key={badge} className="rounded-full border border-cyan-200/20 bg-cyan-300/10 px-3 py-1 text-cyan-100">{badge}</span>
             ))}
           </div>
-          <p className="mt-3 text-xs text-slate-300">Próxima etapa: Etapa 4A · Deep Zoom Mathematics</p>
+          <p className="mt-3 text-xs text-slate-300">Deep Zoom Mathematics activo solo para Mandelbrot en esta fase.</p>
           <div className="mt-3 flex items-center gap-3">
             <button type="button" onClick={() => setQualityCompare((c) => c === 'stage3' ? 'stage2' : 'stage3')} className="rounded-xl border border-white/20 px-3 py-2 text-sm text-white">
               Comparar calidad: {qualityCompare === 'stage3' ? 'Modo Etapa 3' : 'Modo Etapa 2'}
@@ -219,7 +222,7 @@ export function FractalLab() {
         />
         {fractalCanvas}
       </main>
-      <ParameterPanel escapePreset={activePreset} webglStatus={webglError ? 'error' : 'activo'} renderStatus={renderStatus} engineStats={engineStats} />
+      <ParameterPanel escapePreset={activePreset} webglStatus={webglError ? 'error' : 'activo'} renderStatus={renderStatus} engineStats={engineStats} deepZoomState={deepZoomState} />
     </div>
   );
 }

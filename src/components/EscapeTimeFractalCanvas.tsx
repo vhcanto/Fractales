@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { EscapeTimeFractalRenderer } from '../lib/fractal/escape-time/EscapeTimeFractalRenderer';
-import { panCamera, screenToComplex, zoomCameraAt, type ComplexPoint } from '../lib/fractal/escape-time/camera/fractalCamera';
+import { screenToComplex, type ComplexPoint } from '../lib/fractal/escape-time/camera/fractalCamera';
+import { DeepZoomCamera, type DeepZoomDisplayState } from '../lib/fractal/deep-zoom/DeepZoomCamera';
 import { applyRenderStageQuality, RENDER_STAGE_DELAYS, tunePresetForZoom, type EscapeTimePreset, type RenderStage } from '../lib/fractal/escape-time/presets/escapeTimePresets';
 
 interface EscapeTimeFractalCanvasProps {
@@ -18,11 +19,12 @@ interface EscapeTimeFractalCanvasProps {
   }) => void;
   explorationMode?: boolean;
   onCanvasReady?: (canvas: HTMLCanvasElement | null) => void;
+  onDeepZoomStateChange?: (state: DeepZoomDisplayState | null) => void;
 }
 
 const MIN_CANVAS_WIDTH = 320;
 const MIN_CANVAS_HEIGHT = 520;
-const WHEEL_ZOOM_STRENGTH = 0.00125;
+const WHEEL_ZOOM_STRENGTH = 0.00075;
 const DOUBLE_CLICK_ZOOM = 2.2;
 
 const getTechnicalMessage = (error: unknown): string => {
@@ -40,6 +42,7 @@ export function EscapeTimeFractalCanvas({
   onEngineStatsChange,
   explorationMode = false,
   onCanvasReady,
+  onDeepZoomStateChange,
 }: EscapeTimeFractalCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -58,6 +61,7 @@ export function EscapeTimeFractalCanvas({
   const [statusMessage, setStatusMessage] = useState('ETAPA 3 ESTABLE · BASE PARA DEEP ZOOM REAL');
   const [isDragging, setIsDragging] = useState(false);
   const targetPresetRef = useRef<EscapeTimePreset>(preset);
+  const deepZoomCameraRef = useRef<DeepZoomCamera | null>(null);
 
   const clearRefinementTimers = useCallback(() => {
     if (refineTimerMediumRef.current !== null) {
@@ -109,7 +113,9 @@ export function EscapeTimeFractalCanvas({
   useEffect(() => {
     latestPresetRef.current = preset;
     targetPresetRef.current = preset;
-  }, [preset, explorationMode]);
+    deepZoomCameraRef.current = preset.fractalType === 'mandelbrot' ? new DeepZoomCamera(preset) : null;
+    onDeepZoomStateChange?.(deepZoomCameraRef.current?.getDisplayState() ?? null);
+  }, [preset, explorationMode, onDeepZoomStateChange]);
 
   const smoothPresetTransition = useCallback((nextPreset: EscapeTimePreset, progressive = true) => {
     publishPreset(nextPreset, progressive);
@@ -283,7 +289,17 @@ export function EscapeTimeFractalCanvas({
     onComplexPointChangeRef.current?.(screenToComplex(local.x, local.y, viewport, latestPresetRef.current));
 
     if (!dragStartRef.current || !dragPresetRef.current) return;
-    const nextPreset = panCamera(dragPresetRef.current, dragStartRef.current, { x: local.x, y: local.y }, viewport);
+    let nextPreset: EscapeTimePreset;
+    if (dragPresetRef.current.fractalType === 'mandelbrot' && deepZoomCameraRef.current) {
+      deepZoomCameraRef.current.pan(local.x - dragStartRef.current.x, local.y - dragStartRef.current.y, viewport.width, viewport.height);
+      const shader = deepZoomCameraRef.current.toShaderUniforms();
+      nextPreset = { ...dragPresetRef.current, ...shader };
+      onDeepZoomStateChange?.(deepZoomCameraRef.current.getDisplayState());
+    } else {
+      const start = screenToComplex(dragStartRef.current.x, dragStartRef.current.y, viewport, dragPresetRef.current);
+      const end = screenToComplex(local.x, local.y, viewport, dragPresetRef.current);
+      nextPreset = { ...dragPresetRef.current, centerX: dragPresetRef.current.centerX + (start.x - end.x), centerY: dragPresetRef.current.centerY + (start.y - end.y) };
+    }
     targetPresetRef.current = nextPreset;
     smoothPresetTransition(nextPreset);
   };
@@ -317,8 +333,20 @@ export function EscapeTimeFractalCanvas({
         width: rect.width,
         height: rect.height,
       };
+      event.stopPropagation();
       const zoomFactor = Math.exp(-event.deltaY * WHEEL_ZOOM_STRENGTH);
-      const target = zoomCameraAt(targetPresetRef.current, local.x, local.y, { width: local.width, height: local.height }, zoomFactor);
+      let target: EscapeTimePreset;
+      if (targetPresetRef.current.fractalType === 'mandelbrot' && deepZoomCameraRef.current) {
+        deepZoomCameraRef.current.zoomAtScreenPoint(local.x, local.y, local.width, local.height, zoomFactor);
+        target = { ...targetPresetRef.current, ...deepZoomCameraRef.current.toShaderUniforms() };
+        onDeepZoomStateChange?.(deepZoomCameraRef.current.getDisplayState());
+      } else {
+        const before = screenToComplex(local.x, local.y, { width: local.width, height: local.height }, targetPresetRef.current);
+        const zoom = Math.min(targetPresetRef.current.maxZoom, Math.max(targetPresetRef.current.minZoom, targetPresetRef.current.zoom * zoomFactor));
+        const zoomed = { ...targetPresetRef.current, zoom };
+        const after = screenToComplex(local.x, local.y, { width: local.width, height: local.height }, zoomed);
+        target = { ...zoomed, centerX: targetPresetRef.current.centerX + (before.x - after.x), centerY: targetPresetRef.current.centerY + (before.y - after.y) };
+      }
       targetPresetRef.current = target;
       smoothPresetTransition(target);
     };
@@ -330,7 +358,18 @@ export function EscapeTimeFractalCanvas({
   const handleDoubleClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
     const local = getLocalPoint(event);
     if (!local) return;
-    const target = zoomCameraAt(targetPresetRef.current, local.x, local.y, { width: local.width, height: local.height }, DOUBLE_CLICK_ZOOM);
+    let target: EscapeTimePreset;
+    if (targetPresetRef.current.fractalType === 'mandelbrot' && deepZoomCameraRef.current) {
+      deepZoomCameraRef.current.zoomAtScreenPoint(local.x, local.y, local.width, local.height, DOUBLE_CLICK_ZOOM);
+      target = { ...targetPresetRef.current, ...deepZoomCameraRef.current.toShaderUniforms() };
+      onDeepZoomStateChange?.(deepZoomCameraRef.current.getDisplayState());
+    } else {
+      const before = screenToComplex(local.x, local.y, { width: local.width, height: local.height }, targetPresetRef.current);
+      const zoom = Math.min(targetPresetRef.current.maxZoom, Math.max(targetPresetRef.current.minZoom, targetPresetRef.current.zoom * DOUBLE_CLICK_ZOOM));
+      const zoomed = { ...targetPresetRef.current, zoom };
+      const after = screenToComplex(local.x, local.y, { width: local.width, height: local.height }, zoomed);
+      target = { ...zoomed, centerX: targetPresetRef.current.centerX + (before.x - after.x), centerY: targetPresetRef.current.centerY + (before.y - after.y) };
+    }
     targetPresetRef.current = target;
     smoothPresetTransition(target);
   };

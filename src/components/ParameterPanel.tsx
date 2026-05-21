@@ -1,4 +1,5 @@
 import { fractalTypeLabels, getDepthLevel, type EscapeTimePreset, type RenderStage } from '../lib/fractal/escape-time/presets/escapeTimePresets';
+import type { DeepZoomDisplayState } from '../lib/fractal/deep-zoom/DeepZoomCamera';
 interface ParameterPanelProps {
   escapePreset: EscapeTimePreset;
   webglStatus: 'activo' | 'error';
@@ -11,6 +12,7 @@ interface ParameterPanelProps {
     renderMs: number;
     precisionLevel: string;
   };
+  deepZoomState?: DeepZoomDisplayState | null;
 }
 
 const formatNumber = (value: number, digits = 6) => {
@@ -19,7 +21,7 @@ const formatNumber = (value: number, digits = 6) => {
   return value.toFixed(digits);
 };
 
-export function ParameterPanel({ escapePreset, webglStatus, renderStatus, compact = false, engineStats }: ParameterPanelProps) {
+export function ParameterPanel({ escapePreset, webglStatus, renderStatus, compact = false, engineStats, deepZoomState }: ParameterPanelProps) {
   const depthLevel = getDepthLevel(escapePreset.zoom);
 
   return (
@@ -29,8 +31,13 @@ export function ParameterPanel({ escapePreset, webglStatus, renderStatus, compac
 
       <section className="mt-6 grid gap-3 text-sm">
         <div className="rounded-2xl border border-fuchsia-300/30 bg-fuchsia-400/10 p-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-fuchsia-100">ETAPA 3 ESTABLE</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-fuchsia-100">ETAPA 4A · DEEP ZOOM MATHEMATICS</p>
           <p className="mt-2 text-xs text-fuchsia-50">Base estable para Deep Zoom Real</p>
+        </div>
+
+        <div className="rounded-2xl border border-cyan-300/30 bg-cyan-500/10 p-4">
+          <p className="text-xs uppercase tracking-[0.2em] text-cyan-100">Deep Zoom Mathematics</p>
+          <p className="mt-2 text-xs text-cyan-50">activo solo para Mandelbrot en esta fase.</p>
         </div>
         <div className="rounded-2xl bg-white/[0.04] p-4">
           <p className="text-slate-500">Tipo de fractal</p>
@@ -89,6 +96,21 @@ export function ParameterPanel({ escapePreset, webglStatus, renderStatus, compac
             <p className="text-slate-500">Brillo / Saturación</p>
             <p className="mt-1 font-semibold text-cyan-100">{escapePreset.brightness.toFixed(2)} / {escapePreset.saturation.toFixed(2)}</p>
           </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-2xl bg-white/[0.04] p-4">
+            <p className="text-slate-500">Deep Zoom</p><p className="mt-1 font-semibold text-cyan-200">{deepZoomState ? 'activo' : 'inactivo'}</p>
+          </div>
+          <div className="rounded-2xl bg-white/[0.04] p-4">
+            <p className="text-slate-500">Camera mode</p><p className="mt-1 font-semibold text-fuchsia-100">{deepZoomState?.cameraMode ?? 'Standard camera'}</p>
+          </div>
+        </div>
+        <div className="rounded-2xl bg-white/[0.04] p-4">
+          <p className="text-slate-500">Precision digits / Depth level</p><p className="mt-1 font-mono text-xs text-white">{deepZoomState?.precisionDigits ?? '—'} / {deepZoomState?.depthLevel ?? '—'}</p>
+          <p className="mt-2 font-mono text-xs text-cyan-100">Zoom Decimal: {deepZoomState?.zoomDecimal ?? '—'}</p>
+          <p className="mt-1 font-mono text-xs text-cyan-100">CenterX Decimal: {deepZoomState?.centerXDecimal ?? '—'}</p>
+          <p className="mt-1 font-mono text-xs text-cyan-100">CenterY Decimal: {deepZoomState?.centerYDecimal ?? '—'}</p>
+          <p className="mt-1 font-mono text-xs text-fuchsia-100">Float shader: ({deepZoomState?.shaderFloat.centerX ?? '—'}, {deepZoomState?.shaderFloat.centerY ?? '—'}, z={deepZoomState?.shaderFloat.zoom ?? '—'})</p>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-2xl bg-white/[0.04] p-4">
