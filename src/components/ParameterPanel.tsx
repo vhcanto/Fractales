@@ -29,8 +29,8 @@ export function ParameterPanel({ escapePreset, webglStatus, renderStatus, compac
 
       <section className="mt-6 grid gap-3 text-sm">
         <div className="rounded-2xl border border-fuchsia-300/30 bg-fuchsia-400/10 p-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-fuchsia-100">ETAPA 4 ACTIVE</p>
-          <p className="mt-2 text-xs text-fuchsia-50">DISTANCE ESTIMATION · DEEP ZOOM · ORBIT TRAPS · FRACTAL LIGHTING · HDR COLOR ENGINE</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-fuchsia-100">ETAPA 3 ESTABLE</p>
+          <p className="mt-2 text-xs text-fuchsia-50">Base estable para Deep Zoom Real</p>
         </div>
         <div className="rounded-2xl bg-white/[0.04] p-4">
           <p className="text-slate-500">Tipo de fractal</p>

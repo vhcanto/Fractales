@@ -3,7 +3,7 @@ import type { EscapeTimeFractalType, EscapeTimePreset } from './presets/escapeTi
 import { burningShipFragmentShader } from './shaders/burningShip.frag';
 import { juliaFragmentShader } from './shaders/julia.frag';
 import { mandelbrotFragmentShader } from './shaders/mandelbrot.frag';
-import { createProgram, gradientFragmentShaderSource, shaderPreludeSafe, shaderPreludeWithDerivatives } from './utils/shaderUtils';
+import { createProgram, gradientFragmentShaderSource, shaderPreludeSafe } from './utils/shaderUtils';
 
 interface ProgramBundle {
   program: WebGLProgram;
@@ -109,8 +109,7 @@ export class EscapeTimeFractalRenderer {
   private vertexBuffer: WebGLBuffer | null = null;
   private lastTechnicalWarning: string | null = null;
   private lastRenderMs = 0;
-  private readonly derivativesSupported: boolean;
-
+  
   constructor(private readonly canvas: HTMLCanvasElement) {
     if (!canvas || !(canvas instanceof HTMLCanvasElement)) {
       throw new Error('Canvas WebGL inválido o no disponible.');
@@ -131,7 +130,6 @@ export class EscapeTimeFractalRenderer {
     }
 
     this.gl = gl as WebGLRenderingContext;
-    this.derivativesSupported = !!this.gl.getExtension('OES_standard_derivatives');
     this.initGeometry();
     this.gradientProgram = this.createRequiredProgram(gradientFragmentShaderSource, 'gradient-validation');
   }
@@ -199,11 +197,10 @@ export class EscapeTimeFractalRenderer {
     this.setUniform1f(bundle.uniforms.rotation, preset.rotation ?? 0);
     this.setUniform2f(bundle.uniforms.juliaC, preset.juliaC?.x ?? -0.7269, preset.juliaC?.y ?? 0.1889);
     this.setUniform1i(bundle.uniforms.samples, Math.min(Math.max(Math.round(preset.samples ?? 1), 1), 9));
-    this.setUniform1f(bundle.uniforms.deStrength, preset.deStrength ?? 0.85);
-    this.setUniform1f(bundle.uniforms.lightingStrength, preset.lightingStrength ?? 0.65);
-    this.setUniform1f(bundle.uniforms.orbitTrapEnabled, preset.orbitTrapEnabled === false ? 0 : 1);
-    const orbitMode = preset.orbitTrapMode === 'circle' ? 1 : preset.orbitTrapMode === 'glow' ? 2 : preset.orbitTrapMode === 'field' ? 3 : 0;
-    this.setUniform1f(bundle.uniforms.orbitTrapMode, orbitMode);
+    this.setUniform1f(bundle.uniforms.deStrength, 0);
+    this.setUniform1f(bundle.uniforms.lightingStrength, 0);
+    this.setUniform1f(bundle.uniforms.orbitTrapEnabled, 0);
+    this.setUniform1f(bundle.uniforms.orbitTrapMode, 0);
 
     gl.clear(gl.COLOR_BUFFER_BIT);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
@@ -261,11 +258,7 @@ export class EscapeTimeFractalRenderer {
       return cached;
     }
 
-    const advancedFragmentSource = this.derivativesSupported
-      ? shaderByType[fractalType].replace(shaderPreludeSafe, shaderPreludeWithDerivatives)
-      : shaderByType[fractalType];
-
-    const advancedProgram = createProgram(this.gl, advancedFragmentSource, fractalType);
+    const advancedProgram = createProgram(this.gl, shaderByType[fractalType], fractalType);
     if (advancedProgram) {
       const bundle = this.createBundle(advancedProgram, false);
       this.requireCoreUniforms(bundle, fractalType);
@@ -275,7 +268,7 @@ export class EscapeTimeFractalRenderer {
       return bundle;
     }
 
-    const warning = `Fallback WebGL básico activo para ${fractalType}: el shader avanzado no compiló o no enlazó; revisar el log GLSL completo en consola.${this.derivativesSupported ? "" : " OES_standard_derivatives no está disponible, se mantiene iluminación segura sin derivadas."}`;
+    const warning = `Fallback WebGL básico activo para ${fractalType}: el shader estable no compiló o no enlazó; revisar el log GLSL completo en consola.`;
     console.warn(warning);
     const fallbackProgram = createProgram(this.gl, basicFallbackShaderByType[fractalType], `${fractalType}:fallback-basic`);
     if (!fallbackProgram) {

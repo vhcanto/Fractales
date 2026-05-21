@@ -31,16 +31,16 @@ export function FractalControls({
     <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 shadow-glow">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-sm uppercase tracking-[0.35em] text-cyan-300">Fractal Renderer Lab · v05-20-02</p>
+          <p className="text-sm uppercase tracking-[0.35em] text-cyan-300">Fractal Renderer Lab · v05-20-03</p>
           <h2 className="mt-2 text-3xl font-semibold text-white">Fractal Renderer Lab</h2>
           <p className="mt-2 max-w-2xl text-sm text-slate-400">
-            Exploración matemática WebGL de Mandelbrot, Julia Set y Burning Ship con cámara interactiva, zoom profundo y paletas calibradas.
+            Exploración matemática WebGL estable de Mandelbrot, Julia Set y Burning Ship con navegación fluida y progressive render.
           </p>
           <p className="mt-3 inline-flex rounded-full border border-cyan-300/25 bg-cyan-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-cyan-100">
             Render matemático WebGL
           </p>
           <p className="mt-2 inline-flex rounded-full border border-fuchsia-300/30 bg-fuchsia-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-fuchsia-100">
-            ETAPA 4 · TRUE DEEP FRACTAL EXPLORATION ENGINE
+            ETAPA 3 ESTABLE · BASE PARA DEEP ZOOM REAL
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
