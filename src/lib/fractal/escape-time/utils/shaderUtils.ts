@@ -106,14 +106,6 @@ float safeLightingWithoutDerivatives(float depth, vec2 point, float filament) {
   return 0.5 + 0.5 * dot(normal, lightDir);
 }
 
-float advancedLightingWithDerivatives(float depth) {
-  #if defined(GL_OES_standard_derivatives)
-    return 0.5 + 0.5 * dot(normalize(vec3(dFdx(depth), dFdy(depth), 0.65)), normalize(vec3(-0.55, 0.4, 0.8)));
-  #else
-    return 1.0;
-  #endif
-}
-
 vec4 shade(float smoothIteration, float trap, vec2 point, float distanceEstimate, vec2 orbitPoint) {
   float zoomDepth = clamp(log(max(u_zoom, 1.0)) / log(10.0), 0.0, 10.0);
   float adaptiveContrast = u_contrast + zoomDepth * 0.022;
@@ -130,13 +122,10 @@ vec4 shade(float smoothIteration, float trap, vec2 point, float distanceEstimate
   float normalized = smoothIteration / iterationLimit;
   float logDepth = log(1.0 + smoothIteration) / log(1.0 + iterationLimit);
   float depth = pow(clamp(mix(normalized, logDepth, 0.8), 0.0, 1.0), 0.52);
-  float orbitTrap = selectOrbitTrap(u_orbitTrapMode, orbitPoint, distanceEstimate, trap);
-  orbitTrap = mix(trap, orbitTrap, step(0.5, u_orbitTrapEnabled));
-  float filament = exp(-(8.2 - min(zoomDepth, 5.0) * 0.35) * clamp(orbitTrap, 0.0, 1.0));
+  float filament = exp(-9.0 * clamp(trap, 0.0, 1.0));
   float distanceGlow = 1.0 / (1.0 + 24.0 * clamp(trap, 0.0, 2.0));
-  float deGlow = exp(-6.0 * clamp(distanceEstimate, 0.0, 1.0));
-  float fakeNormal = safeLightingWithoutDerivatives(depth, point, filament);
-  float lighting = mix(1.0, fakeNormal, clamp(u_lightingStrength, 0.0, 1.2));
+  float deGlow = 0.0;
+  float lighting = 1.0;
   float fog = 1.0 - exp(-3.4 * depth);
   float microRings = 0.5 + 0.5 * sin((18.0 + zoomDepth * 2.2) * depth + filament * 3.4 + zoomDepth * 0.13);
   float tonalFlow = smoothstep(0.0, 1.0, 0.5 + 0.5 * sin(depth * 9.0 + filament * 1.6));

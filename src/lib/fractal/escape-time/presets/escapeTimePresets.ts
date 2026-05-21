@@ -68,10 +68,10 @@ const basePresetByType: Record<EscapeTimeFractalType, Omit<EscapeTimePreset, key
     gamma: 0.92,
     renderStage: 'final',
     samples: 4,
-    orbitTrapEnabled: true,
+    orbitTrapEnabled: false,
     orbitTrapMode: 'field',
-    lightingStrength: 0.5,
-    deStrength: 0.82,
+    lightingStrength: 0.0,
+    deStrength: 0.0,
   },
   julia: {
     fractalType: 'julia',
@@ -87,10 +87,10 @@ const basePresetByType: Record<EscapeTimeFractalType, Omit<EscapeTimePreset, key
     juliaC: { x: -0.7269, y: 0.1889 },
     renderStage: 'final',
     samples: 4,
-    orbitTrapEnabled: true,
+    orbitTrapEnabled: false,
     orbitTrapMode: 'glow',
-    lightingStrength: 0.62,
-    deStrength: 0.8,
+    lightingStrength: 0.0,
+    deStrength: 0.0,
   },
   burningShip: {
     fractalType: 'burningShip',
@@ -105,10 +105,10 @@ const basePresetByType: Record<EscapeTimeFractalType, Omit<EscapeTimePreset, key
     gamma: 0.94,
     renderStage: 'final',
     samples: 4,
-    orbitTrapEnabled: true,
+    orbitTrapEnabled: false,
     orbitTrapMode: 'line',
-    lightingStrength: 0.66,
-    deStrength: 0.88,
+    lightingStrength: 0.0,
+    deStrength: 0.0,
   },
 };
 
@@ -180,7 +180,7 @@ export const escapeTimeViewPresets: EscapeTimePreset[] = [
     gamma: 0.78,
     orbitTrapMode: 'glow',
     lightingStrength: 0.72,
-    deStrength: 0.88,
+    deStrength: 0.0,
   }),
   withInitialCamera({
     ...basePresetByType.julia,
@@ -300,12 +300,11 @@ export const getDepthLevel = (zoom: number): string => {
 export const getAdaptiveIterations = (zoom: number, fractalType: EscapeTimeFractalType): number => {
   const safeZoom = Math.max(zoom, 0.0001);
   const depth = Math.max(Math.log10(Math.max(safeZoom, 1)), 0);
-  const base = safeZoom < 10 ? 800 : safeZoom < 100 ? 1600 : safeZoom < 1000 ? 3200 : safeZoom < 10_000 ? 6400 : 12000;
-  const typeBias = fractalType === 'mandelbrot' ? 260 : fractalType === 'julia' ? 120 : -180;
-  const deepBoost = safeZoom > 10_000 ? Math.round(depth * 340) : Math.round(depth * 110);
-  const adjusted = base + typeBias + deepBoost;
-  const minimum = fractalType === 'burningShip' ? 780 : 880;
-  const maximum = safeZoom > 3_000_000 ? 16000 : 14000;
+  const base = safeZoom < 10 ? 480 : safeZoom < 100 ? 720 : safeZoom < 1000 ? 1100 : safeZoom < 10_000 ? 1700 : 2400;
+  const typeBias = fractalType === 'mandelbrot' ? 90 : fractalType === 'julia' ? 40 : -20;
+  const adjusted = Math.round(base + depth * 160 + typeBias);
+  const minimum = fractalType === 'burningShip' ? 360 : 420;
+  const maximum = 5200;
   return Math.min(maximum, Math.max(minimum, adjusted));
 };
 

@@ -24,7 +24,6 @@ const MIN_CANVAS_WIDTH = 320;
 const MIN_CANVAS_HEIGHT = 520;
 const WHEEL_ZOOM_STRENGTH = 0.00125;
 const DOUBLE_CLICK_ZOOM = 2.2;
-const NAV_DAMPING = 0.24;
 
 const getTechnicalMessage = (error: unknown): string => {
   if (error instanceof Error && error.message.trim()) return error.message;
@@ -56,10 +55,9 @@ export function EscapeTimeFractalCanvas({
   const dragPresetRef = useRef<EscapeTimePreset | null>(null);
   const refineTimerMediumRef = useRef<number | null>(null);
   const refineTimerFinalRef = useRef<number | null>(null);
-  const [statusMessage, setStatusMessage] = useState('ETAPA 4 · TRUE DEEP FRACTAL EXPLORATION ENGINE');
+  const [statusMessage, setStatusMessage] = useState('ETAPA 3 ESTABLE · BASE PARA DEEP ZOOM REAL');
   const [isDragging, setIsDragging] = useState(false);
   const targetPresetRef = useRef<EscapeTimePreset>(preset);
-  const wheelAccumulatorRef = useRef(0);
 
   const clearRefinementTimers = useCallback(() => {
     if (refineTimerMediumRef.current !== null) {
@@ -114,14 +112,7 @@ export function EscapeTimeFractalCanvas({
   }, [preset, explorationMode]);
 
   const smoothPresetTransition = useCallback((nextPreset: EscapeTimePreset, progressive = true) => {
-    const current = latestPresetRef.current;
-    const smoothed: EscapeTimePreset = {
-      ...nextPreset,
-      centerX: current.centerX + (nextPreset.centerX - current.centerX) * NAV_DAMPING,
-      centerY: current.centerY + (nextPreset.centerY - current.centerY) * NAV_DAMPING,
-      zoom: current.zoom + (nextPreset.zoom - current.zoom) * NAV_DAMPING,
-    };
-    publishPreset(smoothed, progressive);
+    publishPreset(nextPreset, progressive);
   }, [publishPreset]);
 
   useEffect(() => {
@@ -326,8 +317,7 @@ export function EscapeTimeFractalCanvas({
         width: rect.width,
         height: rect.height,
       };
-      wheelAccumulatorRef.current = wheelAccumulatorRef.current * 0.7 + event.deltaY * 0.3;
-      const zoomFactor = Math.exp(-wheelAccumulatorRef.current * WHEEL_ZOOM_STRENGTH);
+      const zoomFactor = Math.exp(-event.deltaY * WHEEL_ZOOM_STRENGTH);
       const target = zoomCameraAt(targetPresetRef.current, local.x, local.y, { width: local.width, height: local.height }, zoomFactor);
       targetPresetRef.current = target;
       smoothPresetTransition(target);
