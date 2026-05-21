@@ -15,7 +15,8 @@
     "typescript": "latest",
     "react": "latest",
     "react-dom": "latest",
-    "pixi.js": "^8.13.2"
+    "pixi.js": "^8.13.2",
+    "decimal.js": "^10.4.3"
   },
   "devDependencies": {
     "@eslint/js": "latest",

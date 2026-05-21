@@ -38,7 +38,7 @@ export interface EscapeTimePreset extends FractalCameraState {
 }
 
 const DEFAULT_MIN_ZOOM = 0.08;
-const DEFAULT_MAX_ZOOM = 100_000_000_000_000;
+const DEFAULT_MAX_ZOOM = 10_000_000_000_000_000_000;
 
 export const RENDER_STAGE_DELAYS = {
   mediumMs: 260,
@@ -300,11 +300,13 @@ export const getDepthLevel = (zoom: number): string => {
 export const getAdaptiveIterations = (zoom: number, fractalType: EscapeTimeFractalType): number => {
   const safeZoom = Math.max(zoom, 0.0001);
   const depth = Math.max(Math.log10(Math.max(safeZoom, 1)), 0);
-  const base = safeZoom < 10 ? 480 : safeZoom < 100 ? 720 : safeZoom < 1000 ? 1100 : safeZoom < 10_000 ? 1700 : 2400;
-  const typeBias = fractalType === 'mandelbrot' ? 90 : fractalType === 'julia' ? 40 : -20;
-  const adjusted = Math.round(base + depth * 160 + typeBias);
+  const base = fractalType === 'mandelbrot'
+    ? safeZoom < 10 ? 800 : safeZoom < 1_000 ? 1500 : safeZoom < 100_000 ? 3000 : safeZoom < 10_000_000 ? 6000 : 10000
+    : safeZoom < 10 ? 520 : safeZoom < 100 ? 780 : safeZoom < 1000 ? 1200 : safeZoom < 10_000 ? 1900 : 2600;
+  const typeBias = fractalType === 'mandelbrot' ? 0 : fractalType === 'julia' ? 30 : -20;
+  const adjusted = Math.round(base + depth * (fractalType === 'mandelbrot' ? 90 : 140) + typeBias);
   const minimum = fractalType === 'burningShip' ? 360 : 420;
-  const maximum = 5200;
+  const maximum = fractalType === 'mandelbrot' ? 10000 : 5200;
   return Math.min(maximum, Math.max(minimum, adjusted));
 };
 
