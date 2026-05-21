@@ -1,6 +1,6 @@
-import { shaderPrelude } from '../utils/shaderUtils';
+import { shaderPreludeSafe } from '../utils/shaderUtils';
 
-export const burningShipFragmentShader = `${shaderPrelude}
+export const burningShipFragmentShader = `${shaderPreludeSafe}
 
 vec2 burningShipStep(vec2 z, vec2 c) {
   z = abs(z);

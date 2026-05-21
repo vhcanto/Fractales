@@ -159,7 +159,7 @@ export function FractalLab() {
       <div className="fixed inset-0 z-50 flex flex-col gap-3 overflow-hidden bg-slate-950 p-3 text-slate-100">
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-white/10 bg-slate-900/90 px-4 py-3 shadow-2xl shadow-slate-950/50">
           <div>
-            <p className="text-xs uppercase tracking-[0.28em] text-cyan-300">Modo exploración · v05-18-13</p>
+            <p className="text-xs uppercase tracking-[0.28em] text-cyan-300">Modo exploración · v05-20-02</p>
             <h2 className="text-lg font-semibold text-white">{fractalTypeLabels[fractalType]} · {getDepthLevel(activePreset.zoom)}</h2>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -191,7 +191,7 @@ export function FractalLab() {
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
       <main className="space-y-6">
         <div className="rounded-3xl border border-fuchsia-300/30 bg-slate-900/75 p-4">
-          <p className="text-xs uppercase tracking-[0.28em] text-cyan-300">SistemaFractales · v05-18-13</p>
+          <p className="text-xs uppercase tracking-[0.28em] text-cyan-300">SistemaFractales · v05-20-02</p>
           <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
             {['ETAPA 3 · DEEP FRACTAL ENGINE', 'WEBGL ACTIVE', 'PROGRESSIVE RENDER', 'MULTISAMPLING ACTIVE'].map((badge) => (
               <span key={badge} className="rounded-full border border-cyan-200/20 bg-cyan-300/10 px-3 py-1 text-cyan-100">{badge}</span>

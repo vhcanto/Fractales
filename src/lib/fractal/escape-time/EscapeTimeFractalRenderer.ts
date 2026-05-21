@@ -3,7 +3,7 @@ import type { EscapeTimeFractalType, EscapeTimePreset } from './presets/escapeTi
 import { burningShipFragmentShader } from './shaders/burningShip.frag';
 import { juliaFragmentShader } from './shaders/julia.frag';
 import { mandelbrotFragmentShader } from './shaders/mandelbrot.frag';
-import { createProgram, gradientFragmentShaderSource, shaderPrelude } from './utils/shaderUtils';
+import { createProgram, gradientFragmentShaderSource, shaderPreludeSafe, shaderPreludeWithDerivatives } from './utils/shaderUtils';
 
 interface ProgramBundle {
   program: WebGLProgram;
@@ -43,7 +43,7 @@ const fallbackOrbitStepByType: Record<EscapeTimeFractalType, string> = {
   burningShip: 'z = abs(z); return vec2(z.x * z.x - z.y * z.y, 2.0 * z.x * z.y) + c;',
 };
 
-const createBasicFallbackShader = (fractalType: EscapeTimeFractalType) => `${shaderPrelude}
+const createBasicFallbackShader = (fractalType: EscapeTimeFractalType) => `${shaderPreludeSafe}
 
 vec2 stableFallbackStep(vec2 z, vec2 c) {
   ${fallbackOrbitStepByType[fractalType]}
@@ -109,6 +109,7 @@ export class EscapeTimeFractalRenderer {
   private vertexBuffer: WebGLBuffer | null = null;
   private lastTechnicalWarning: string | null = null;
   private lastRenderMs = 0;
+  private readonly derivativesSupported: boolean;
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     if (!canvas || !(canvas instanceof HTMLCanvasElement)) {
@@ -130,6 +131,7 @@ export class EscapeTimeFractalRenderer {
     }
 
     this.gl = gl as WebGLRenderingContext;
+    this.derivativesSupported = !!this.gl.getExtension('OES_standard_derivatives');
     this.initGeometry();
     this.gradientProgram = this.createRequiredProgram(gradientFragmentShaderSource, 'gradient-validation');
   }
@@ -259,7 +261,11 @@ export class EscapeTimeFractalRenderer {
       return cached;
     }
 
-    const advancedProgram = createProgram(this.gl, shaderByType[fractalType], fractalType);
+    const advancedFragmentSource = this.derivativesSupported
+      ? shaderByType[fractalType].replace(shaderPreludeSafe, shaderPreludeWithDerivatives)
+      : shaderByType[fractalType];
+
+    const advancedProgram = createProgram(this.gl, advancedFragmentSource, fractalType);
     if (advancedProgram) {
       const bundle = this.createBundle(advancedProgram, false);
       this.requireCoreUniforms(bundle, fractalType);
@@ -269,7 +275,7 @@ export class EscapeTimeFractalRenderer {
       return bundle;
     }
 
-    const warning = `Fallback WebGL básico activo para ${fractalType}: el shader avanzado no compiló o no enlazó; revisar el log GLSL completo en consola.`;
+    const warning = `Fallback WebGL básico activo para ${fractalType}: el shader avanzado no compiló o no enlazó; revisar el log GLSL completo en consola.${this.derivativesSupported ? "" : " OES_standard_derivatives no está disponible, se mantiene iluminación segura sin derivadas."}`;
     console.warn(warning);
     const fallbackProgram = createProgram(this.gl, basicFallbackShaderByType[fractalType], `${fractalType}:fallback-basic`);
     if (!fallbackProgram) {
