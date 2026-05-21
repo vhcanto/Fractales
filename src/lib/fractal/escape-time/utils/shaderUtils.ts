@@ -44,6 +44,10 @@ uniform float u_gamma;
 uniform float u_rotation;
 uniform vec2 u_juliaC;
 uniform int u_samples;
+uniform float u_deStrength;
+uniform float u_lightingStrength;
+uniform float u_orbitTrapMode;
+uniform float u_orbitTrapEnabled;
 
 vec2 rotatePoint(vec2 point, float angle) {
   float s = sin(angle);
@@ -77,7 +81,18 @@ vec3 samplePalette(float t) {
   return mix(a, b, f);
 }
 
-vec4 shade(float smoothIteration, float trap, vec2 point) {
+float selectOrbitTrap(float mode, vec2 z, float de, float trap) {
+  float lineTrap = abs(z.x - z.y);
+  float circleTrap = abs(length(z) - 0.55);
+  float glowTrap = 1.0 / (1.0 + 18.0 * length(z));
+  float fieldTrap = min(trap, abs(sin(z.x * 2.7) * cos(z.y * 2.7)));
+  if (mode < 0.5) return lineTrap;
+  if (mode < 1.5) return circleTrap;
+  if (mode < 2.5) return glowTrap;
+  return mix(fieldTrap, de, 0.35);
+}
+
+vec4 shade(float smoothIteration, float trap, vec2 point, float distanceEstimate, vec2 orbitPoint) {
   float zoomDepth = clamp(log(max(u_zoom, 1.0)) / log(10.0), 0.0, 10.0);
   float adaptiveContrast = u_contrast + zoomDepth * 0.022;
   float adaptiveGamma = max(u_gamma - zoomDepth * 0.012, 0.64);
@@ -93,14 +108,19 @@ vec4 shade(float smoothIteration, float trap, vec2 point) {
   float normalized = smoothIteration / iterationLimit;
   float logDepth = log(1.0 + smoothIteration) / log(1.0 + iterationLimit);
   float depth = pow(clamp(mix(normalized, logDepth, 0.8), 0.0, 1.0), 0.52);
-  float filament = exp(-(8.2 - min(zoomDepth, 5.0) * 0.35) * clamp(trap, 0.0, 1.0));
+  float orbitTrap = selectOrbitTrap(u_orbitTrapMode, orbitPoint, distanceEstimate, trap);
+  orbitTrap = mix(trap, orbitTrap, step(0.5, u_orbitTrapEnabled));
+  float filament = exp(-(8.2 - min(zoomDepth, 5.0) * 0.35) * clamp(orbitTrap, 0.0, 1.0));
   float distanceGlow = 1.0 / (1.0 + 24.0 * clamp(trap, 0.0, 2.0));
+  float deGlow = exp(-6.0 * clamp(distanceEstimate, 0.0, 1.0));
+  float fakeNormal = 0.5 + 0.5 * dot(normalize(vec3(dFdx(depth), dFdy(depth), 0.65)), normalize(vec3(-0.55, 0.4, 0.8)));
+  float lighting = mix(1.0, fakeNormal, clamp(u_lightingStrength, 0.0, 1.2));
   float fog = 1.0 - exp(-3.4 * depth);
   float microRings = 0.5 + 0.5 * sin((18.0 + zoomDepth * 2.2) * depth + filament * 3.4 + zoomDepth * 0.13);
   float tonalFlow = smoothstep(0.0, 1.0, 0.5 + 0.5 * sin(depth * 9.0 + filament * 1.6));
   float dither = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453);
-  vec3 color = samplePalette(depth + microRings * 0.022 + filament * 0.075 + tonalFlow * 0.014 + (dither - 0.5) * 0.006);
-  color *= 0.72 + 0.62 * filament + 0.16 * distanceGlow;
+  vec3 color = samplePalette(depth + microRings * 0.022 + filament * 0.075 + tonalFlow * 0.014 + deGlow * 0.05 + (dither - 0.5) * 0.006);
+  color *= (0.72 + 0.62 * filament + 0.16 * distanceGlow + deGlow * u_deStrength * 0.35) * lighting;
   color = (color - 0.5) * adaptiveContrast + 0.5;
   color *= dynamicBrightness;
   float luma = dot(color, vec3(0.2126, 0.7152, 0.0722));

@@ -31,6 +31,10 @@ export interface EscapeTimePreset extends FractalCameraState {
   juliaC?: { x: number; y: number };
   renderStage: RenderStage;
   samples: number;
+  orbitTrapEnabled?: boolean;
+  orbitTrapMode?: 'line' | 'circle' | 'glow' | 'field';
+  lightingStrength?: number;
+  deStrength?: number;
 }
 
 const DEFAULT_MIN_ZOOM = 0.08;
@@ -64,6 +68,10 @@ const basePresetByType: Record<EscapeTimeFractalType, Omit<EscapeTimePreset, key
     gamma: 0.92,
     renderStage: 'final',
     samples: 4,
+    orbitTrapEnabled: true,
+    orbitTrapMode: 'field',
+    lightingStrength: 0.5,
+    deStrength: 0.82,
   },
   julia: {
     fractalType: 'julia',
@@ -79,6 +87,10 @@ const basePresetByType: Record<EscapeTimeFractalType, Omit<EscapeTimePreset, key
     juliaC: { x: -0.7269, y: 0.1889 },
     renderStage: 'final',
     samples: 4,
+    orbitTrapEnabled: true,
+    orbitTrapMode: 'glow',
+    lightingStrength: 0.62,
+    deStrength: 0.8,
   },
   burningShip: {
     fractalType: 'burningShip',
@@ -93,6 +105,10 @@ const basePresetByType: Record<EscapeTimeFractalType, Omit<EscapeTimePreset, key
     gamma: 0.94,
     renderStage: 'final',
     samples: 4,
+    orbitTrapEnabled: true,
+    orbitTrapMode: 'line',
+    lightingStrength: 0.66,
+    deStrength: 0.88,
   },
 };
 
@@ -147,6 +163,84 @@ export const escapeTimeViewPresets: EscapeTimePreset[] = [
     brightness: 1.02,
     gamma: 0.82,
     rotation: 0.28,
+  }),
+  withInitialCamera({
+    ...basePresetByType.julia,
+    id: 'julia-nebula',
+    name: 'Nebula Julia',
+    description: 'Preset cinematográfico con filamentos gaseosos y profundidad progresiva.',
+    centerX: -0.211,
+    centerY: 0.671,
+    zoom: 620,
+    juliaC: { x: -0.74543, y: 0.11301 },
+    maxIterations: 2800,
+    colorPalette: 'nebula-hdr',
+    colorShift: 0.42,
+    contrast: 1.28,
+    gamma: 0.78,
+    orbitTrapMode: 'glow',
+    lightingStrength: 0.72,
+    deStrength: 0.88,
+  }),
+  withInitialCamera({
+    ...basePresetByType.julia,
+    id: 'julia-spiral',
+    name: 'Spiral Julia',
+    description: 'Espirales densas con continuidad suave y detalle interno alto.',
+    centerX: -0.395,
+    centerY: 0.577,
+    zoom: 710,
+    juliaC: { x: -0.70176, y: -0.3842 },
+    maxIterations: 2900,
+    colorPalette: 'plasma-cinematic',
+    orbitTrapMode: 'line',
+    lightingStrength: 0.68,
+    deStrength: 0.9,
+  }),
+  withInitialCamera({
+    ...basePresetByType.julia,
+    id: 'julia-crystal',
+    name: 'Crystal Julia',
+    description: 'Estructuras cristalinas de alto contraste con sombreado de relieve.',
+    centerX: -0.501,
+    centerY: 0.184,
+    zoom: 560,
+    juliaC: { x: -0.8, y: 0.156 },
+    maxIterations: 3000,
+    colorPalette: 'cold-space-hdr',
+    orbitTrapMode: 'circle',
+    lightingStrength: 0.77,
+    deStrength: 0.92,
+  }),
+  withInitialCamera({
+    ...basePresetByType.julia,
+    id: 'julia-infinite-bloom',
+    name: 'Infinite Bloom Julia',
+    description: 'Composición orgánica con bloom matemático y gradiente continuo.',
+    centerX: -0.354,
+    centerY: 0.612,
+    zoom: 835,
+    juliaC: { x: -0.7269, y: 0.1889 },
+    maxIterations: 3200,
+    colorPalette: 'deep-ocean-hdr',
+    orbitTrapMode: 'field',
+    lightingStrength: 0.74,
+    deStrength: 0.93,
+  }),
+  withInitialCamera({
+    ...basePresetByType.julia,
+    id: 'julia-organic',
+    name: 'Organic Julia',
+    description: 'Textura orgánica y asimétrica para exploración infinita con alta continuidad.',
+    centerX: -0.438,
+    centerY: 0.563,
+    zoom: 900,
+    juliaC: { x: -0.662, y: -0.447 },
+    maxIterations: 3400,
+    colorPalette: 'monochrome-math',
+    orbitTrapMode: 'glow',
+    lightingStrength: 0.7,
+    deStrength: 0.95,
   }),
   withInitialCamera({
     ...basePresetByType.burningShip,
