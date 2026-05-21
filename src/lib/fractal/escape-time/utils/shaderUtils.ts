@@ -22,7 +22,8 @@ void main() {
 }
 `;
 
-export const shaderPrelude = `
+const buildShaderPrelude = (derivativesEnabled: boolean) => `
+${derivativesEnabled ? '#extension GL_OES_standard_derivatives : enable\n' : ''}
 precision highp float;
 precision highp int;
 
@@ -63,6 +64,10 @@ vec2 pixelToPlane(vec2 offset) {
   return u_center + p * (3.2 / max(u_zoom, 0.0001));
 }
 
+float sampleEscapeFieldAt(vec2 point) {
+  return length(point - u_center);
+}
+
 vec3 samplePalette(float t) {
   float x = fract(t + u_colorShift) * 7.0;
   int index = int(floor(x));
@@ -92,6 +97,23 @@ float selectOrbitTrap(float mode, vec2 z, float de, float trap) {
   return mix(fieldTrap, de, 0.35);
 }
 
+float safeLightingWithoutDerivatives(float depth, vec2 point, float filament) {
+  float eps = 1.0 / max(min(u_resolution.x, u_resolution.y), 1.0);
+  float dx = sampleEscapeFieldAt(point + vec2(eps, 0.0)) - sampleEscapeFieldAt(point - vec2(eps, 0.0));
+  float dy = sampleEscapeFieldAt(point + vec2(0.0, eps)) - sampleEscapeFieldAt(point - vec2(0.0, eps));
+  vec3 normal = normalize(vec3(dx, dy, 0.75 + filament * 0.15) + vec3(1.0e-6));
+  vec3 lightDir = normalize(vec3(-0.55, 0.4, 0.8 + depth * 0.22));
+  return 0.5 + 0.5 * dot(normal, lightDir);
+}
+
+float advancedLightingWithDerivatives(float depth) {
+  #if defined(GL_OES_standard_derivatives)
+    return 0.5 + 0.5 * dot(normalize(vec3(dFdx(depth), dFdy(depth), 0.65)), normalize(vec3(-0.55, 0.4, 0.8)));
+  #else
+    return 1.0;
+  #endif
+}
+
 vec4 shade(float smoothIteration, float trap, vec2 point, float distanceEstimate, vec2 orbitPoint) {
   float zoomDepth = clamp(log(max(u_zoom, 1.0)) / log(10.0), 0.0, 10.0);
   float adaptiveContrast = u_contrast + zoomDepth * 0.022;
@@ -113,7 +135,7 @@ vec4 shade(float smoothIteration, float trap, vec2 point, float distanceEstimate
   float filament = exp(-(8.2 - min(zoomDepth, 5.0) * 0.35) * clamp(orbitTrap, 0.0, 1.0));
   float distanceGlow = 1.0 / (1.0 + 24.0 * clamp(trap, 0.0, 2.0));
   float deGlow = exp(-6.0 * clamp(distanceEstimate, 0.0, 1.0));
-  float fakeNormal = 0.5 + 0.5 * dot(normalize(vec3(dFdx(depth), dFdy(depth), 0.65)), normalize(vec3(-0.55, 0.4, 0.8)));
+  float fakeNormal = safeLightingWithoutDerivatives(depth, point, filament);
   float lighting = mix(1.0, fakeNormal, clamp(u_lightingStrength, 0.0, 1.2));
   float fog = 1.0 - exp(-3.4 * depth);
   float microRings = 0.5 + 0.5 * sin((18.0 + zoomDepth * 2.2) * depth + filament * 3.4 + zoomDepth * 0.13);
@@ -131,6 +153,9 @@ vec4 shade(float smoothIteration, float trap, vec2 point, float distanceEstimate
   return vec4(clamp(color, vec3(0.0), vec3(1.0)), 1.0);
 }
 `;
+
+export const shaderPreludeSafe = buildShaderPrelude(false);
+export const shaderPreludeWithDerivatives = buildShaderPrelude(true);
 
 const shaderKindName = (gl: WebGLRenderingContext, type: number) => (type === gl.VERTEX_SHADER ? 'vertex shader' : 'fragment shader');
 
