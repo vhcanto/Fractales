@@ -56,7 +56,7 @@ export function EscapeTimeFractalCanvas({
   const dragPresetRef = useRef<EscapeTimePreset | null>(null);
   const refineTimerMediumRef = useRef<number | null>(null);
   const refineTimerFinalRef = useRef<number | null>(null);
-  const [statusMessage, setStatusMessage] = useState('ETAPA 3 · DEEP FRACTAL ENGINE');
+  const [statusMessage, setStatusMessage] = useState('ETAPA 4 · TRUE DEEP FRACTAL EXPLORATION ENGINE');
   const [isDragging, setIsDragging] = useState(false);
   const targetPresetRef = useRef<EscapeTimePreset>(preset);
   const wheelAccumulatorRef = useRef(0);

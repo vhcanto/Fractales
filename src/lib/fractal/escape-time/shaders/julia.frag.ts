@@ -24,9 +24,12 @@ vec4 renderSample(vec2 offset) {
   float escapeRadiusSquared = u_escapeRadius * u_escapeRadius;
   float escapedAt = -1.0;
   float trap = 10.0;
+  float distanceEstimate = 1.0;
+  vec2 dz = vec2(1.0, 0.0);
 
   for (int i = 0; i < MAX_ITERATIONS; i++) {
     if (i >= u_maxIterations) break;
+    dz = 2.0 * vec2(z.x * dz.x - z.y * dz.y, z.x * dz.y + z.y * dz.x);
     z = squareComplex(z) + c;
     float radiusSquared = dot(z, z);
     trap = min(trap, abs(length(z - vec2(0.18, -0.08)) - 0.42) + 0.012 * abs(z.x));
@@ -35,11 +38,14 @@ vec4 renderSample(vec2 offset) {
       float logZn = log(max(radiusSquared, 1.000001)) * 0.5;
       float nu = log(max(logZn / log(2.0), 0.000001)) / log(2.0);
       escapedAt = float(i) + 1.0 - nu;
+      float magZ = max(length(z), 1.000001);
+      float magDz = max(length(dz), 1.0e-6);
+      distanceEstimate = 0.5 * log(magZ) * magZ / magDz;
       break;
     }
   }
 
-  return shade(escapedAt, trap, z);
+  return shade(escapedAt, trap, c, clamp(distanceEstimate * 0.14, 0.0, 1.0), z);
 }
 
 void main() {

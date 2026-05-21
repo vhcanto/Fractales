@@ -24,6 +24,10 @@ interface ProgramBundle {
     rotation: WebGLUniformLocation | null;
     juliaC: WebGLUniformLocation | null;
     samples: WebGLUniformLocation | null;
+    deStrength: WebGLUniformLocation | null;
+    lightingStrength: WebGLUniformLocation | null;
+    orbitTrapMode: WebGLUniformLocation | null;
+    orbitTrapEnabled: WebGLUniformLocation | null;
   };
 }
 
@@ -65,7 +69,7 @@ vec4 renderFallbackSample(vec2 offset) {
     }
   }
 
-  return shade(escapedAt, trap * 0.08, c);
+  return shade(escapedAt, trap * 0.08, c, trap * 0.08, z);
 }
 
 void main() {
@@ -193,6 +197,11 @@ export class EscapeTimeFractalRenderer {
     this.setUniform1f(bundle.uniforms.rotation, preset.rotation ?? 0);
     this.setUniform2f(bundle.uniforms.juliaC, preset.juliaC?.x ?? -0.7269, preset.juliaC?.y ?? 0.1889);
     this.setUniform1i(bundle.uniforms.samples, Math.min(Math.max(Math.round(preset.samples ?? 1), 1), 9));
+    this.setUniform1f(bundle.uniforms.deStrength, preset.deStrength ?? 0.85);
+    this.setUniform1f(bundle.uniforms.lightingStrength, preset.lightingStrength ?? 0.65);
+    this.setUniform1f(bundle.uniforms.orbitTrapEnabled, preset.orbitTrapEnabled === false ? 0 : 1);
+    const orbitMode = preset.orbitTrapMode === 'circle' ? 1 : preset.orbitTrapMode === 'glow' ? 2 : preset.orbitTrapMode === 'field' ? 3 : 0;
+    this.setUniform1f(bundle.uniforms.orbitTrapMode, orbitMode);
 
     gl.clear(gl.COLOR_BUFFER_BIT);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
@@ -297,6 +306,10 @@ export class EscapeTimeFractalRenderer {
       rotation: this.gl.getUniformLocation(program, 'u_rotation'),
       juliaC: this.gl.getUniformLocation(program, 'u_juliaC'),
       samples: this.gl.getUniformLocation(program, 'u_samples'),
+      deStrength: this.gl.getUniformLocation(program, 'u_deStrength'),
+      lightingStrength: this.gl.getUniformLocation(program, 'u_lightingStrength'),
+      orbitTrapMode: this.gl.getUniformLocation(program, 'u_orbitTrapMode'),
+      orbitTrapEnabled: this.gl.getUniformLocation(program, 'u_orbitTrapEnabled'),
     };
 
     return { program, uniforms, isFallback, warning };
